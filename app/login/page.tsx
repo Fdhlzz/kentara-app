@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LogIn, Mail, Lock, Loader2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { LogIn, Mail, Lock, Loader2, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loginAction } from '@/lib/auth/actions';
 
@@ -14,16 +14,22 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     if (!email.trim()) {
-      toast.error('Email wajib diisi');
+      const err = 'Alamat email wajib diisi.';
+      setErrorMessage(err);
+      toast.error(err);
       return;
     }
     if (!password) {
-      toast.error('Kata sandi wajib diisi');
+      const err = 'Kata sandi wajib diisi.';
+      setErrorMessage(err);
+      toast.error(err);
       return;
     }
 
@@ -34,7 +40,9 @@ export default function LoginPage() {
     startTransition(async () => {
       const res = await loginAction(formData);
       if (!res.success) {
-        toast.error(res.error || 'Gagal masuk akun');
+        const errorText = res.error || 'Gagal masuk akun. Periksa email dan kata sandi Anda.';
+        setErrorMessage(errorText);
+        toast.error(errorText);
         return;
       }
 
@@ -65,7 +73,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
         {/* Header */}
-        <div className="text-center space-y-2 mb-8">
+        <div className="text-center space-y-2 mb-6">
           <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shadow-sm mb-1">
             <Image
               src="/icons/icon-192x192.png"
@@ -84,6 +92,14 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-950 dark:bg-rose-950/30 dark:text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+            <div className="flex-1 font-medium">{errorMessage}</div>
+          </div>
+        )}
+
         {/* Form Login */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -97,7 +113,10 @@ export default function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="nama@email.com"
                 required
                 disabled={isPending}
@@ -117,7 +136,10 @@ export default function LoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="••••••••"
                 required
                 disabled={isPending}
@@ -129,7 +151,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={isPending}
-            className="w-full min-h-[48px] touch-manipulation font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition mt-2"
+            className="w-full min-h-[48px] touch-manipulation font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition mt-2 cursor-pointer"
           >
             {isPending ? (
               <div className="flex items-center gap-2">

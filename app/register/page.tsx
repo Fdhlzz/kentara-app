@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Sprout,
   ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,20 +29,28 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     if (!fullName.trim()) {
-      toast.error('Nama lengkap wajib diisi');
+      const err = 'Nama lengkap wajib diisi.';
+      setErrorMessage(err);
+      toast.error(err);
       return;
     }
     if (!email.trim()) {
-      toast.error('Email wajib diisi');
+      const err = 'Alamat email wajib diisi.';
+      setErrorMessage(err);
+      toast.error(err);
       return;
     }
     if (!password || password.length < 6) {
-      toast.error('Kata sandi minimal 6 karakter');
+      const err = 'Kata sandi minimal harus 6 karakter.';
+      setErrorMessage(err);
+      toast.error(err);
       return;
     }
 
@@ -54,7 +63,9 @@ export default function RegisterPage() {
     startTransition(async () => {
       const res = await registerAction(formData);
       if (!res.success) {
-        toast.error(res.error || 'Gagal mendaftar akun');
+        const errorText = res.error || 'Gagal mendaftar akun. Silakan coba kembali.';
+        setErrorMessage(errorText);
+        toast.error(errorText);
         return;
       }
 
@@ -111,6 +122,14 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-950 dark:bg-rose-950/30 dark:text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+            <div className="flex-1 font-medium">{errorMessage}</div>
+          </div>
+        )}
+
         {/* Form Registrasi */}
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
@@ -124,7 +143,10 @@ export default function RegisterPage() {
               <input
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="Contoh: Bpk. Budi Santoso"
                 required
                 disabled={isPending}
@@ -144,7 +166,10 @@ export default function RegisterPage() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="Contoh: 081234567890"
                 disabled={isPending}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 min-h-[44px] transition"
@@ -163,7 +188,10 @@ export default function RegisterPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="petani@email.com"
                 required
                 disabled={isPending}
@@ -183,7 +211,10 @@ export default function RegisterPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -196,7 +227,7 @@ export default function RegisterPage() {
           <Button
             type="submit"
             disabled={isPending}
-            className="w-full min-h-[48px] touch-manipulation font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition mt-2"
+            className="w-full min-h-[48px] touch-manipulation font-bold text-sm sm:text-base bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition mt-2 cursor-pointer"
           >
             {isPending ? (
               <div className="flex items-center gap-2">

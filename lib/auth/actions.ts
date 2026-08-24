@@ -19,14 +19,14 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
       return null;
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      // Fallback profil jika trigger database belum menyinkronkan
+    if (!profile) {
+      // Fallback profil jika record belum ada di tabel profiles
       const metaRole = (user.user_metadata?.role as UserRole) || 'petani';
       return {
         id: user.id,
@@ -54,16 +54,23 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
 }
 
 /**
- * Server Action untuk proses Login
+ * Server Action untuk proses Login dengan penanganan error komprehensif
  */
 export async function loginAction(formData: FormData): Promise<AuthActionResult> {
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
 
-  if (!email || !password) {
+  if (!email) {
     return {
       success: false,
-      error: 'Email dan kata sandi wajib diisi.',
+      error: 'Alamat email wajib diisi.',
+    };
+  }
+
+  if (!password) {
+    return {
+      success: false,
+      error: 'Kata sandi wajib diisi.',
     };
   }
 
@@ -75,21 +82,31 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     });
 
     if (error || !data.user) {
+      let errorMessage = 'Gagal masuk ke akun.';
+      const rawMsg = error?.message || '';
+
+      if (rawMsg.includes('Invalid login credentials')) {
+        errorMessage = 'Email atau kata sandi yang Anda masukkan salah.';
+      } else if (rawMsg.includes('Email not confirmed')) {
+        errorMessage = 'Email Anda belum dikonfirmasi. Silakan periksa inbox/spam email Anda.';
+      } else if (rawMsg.includes('rate limit') || rawMsg.includes('Too many requests')) {
+        errorMessage = 'Terlalu banyak percobaan masuk. Mohon tunggu 1-2 menit sebelum mencoba kembali.';
+      } else if (rawMsg) {
+        errorMessage = rawMsg;
+      }
+
       return {
         success: false,
-        error:
-          error?.message === 'Invalid login credentials'
-            ? 'Email atau kata sandi yang Anda masukkan salah.'
-            : error?.message || 'Gagal masuk ke akun.',
+        error: errorMessage,
       };
     }
 
-    // Ambil role pengguna untuk menentukan halaman tujuan
+    // Ambil role pengguna dari tabel profiles dengan fallback ke metadata
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
 
     const role = (profile?.role || data.user.user_metadata?.role || 'petani') as UserRole;
     const targetPath = `/${role}`;
@@ -99,29 +116,32 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       redirectTo: targetPath,
     };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem.';
+    const message =
+      err instanceof Error ? err.message : 'Terjadi gangguan jaringan atau server.';
+    console.error('[loginAction Error]:', message);
+
     return {
       success: false,
-      error: message,
+      error: 'Terjadi kesalahan sistem saat mencoba masuk. Silakan coba kembali.',
     };
   }
 }
 
 /**
- * Server Action untuk proses Registrasi (Khusus Pendaftaran Petani / Pembeli)
+ * Server Action untuk proses Registrasi dengan penanganan error komprehensif
  */
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
   const fullName = String(formData.get('full_name') || '').trim();
   const phone = String(formData.get('phone') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
-  const role: UserRole = 'petani'; // Registrasi publik dikhususkan untuk role Petani
+  const role: UserRole = 'petani';
 
   if (!fullName) {
     return { success: false, error: 'Nama lengkap wajib diisi.' };
   }
   if (!email) {
-    return { success: false, error: 'Email wajib diisi.' };
+    return { success: false, error: 'Alamat email wajib diisi.' };
   }
   if (!password || password.length < 6) {
     return {
@@ -145,9 +165,20 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     });
 
     if (error || !data.user) {
+      let errorMessage = 'Gagal mendaftarkan akun baru.';
+      const rawMsg = error?.message || '';
+
+      if (rawMsg.includes('already registered') || rawMsg.includes('User already exists')) {
+        errorMessage = 'Alamat email ini sudah terdaftar. Silakan masuk atau gunakan email lain.';
+      } else if (rawMsg.includes('Password should be')) {
+        errorMessage = 'Kata sandi terlalu sederhana. Mohon gunakan kata sandi yang lebih kuat.';
+      } else if (rawMsg) {
+        errorMessage = rawMsg;
+      }
+
       return {
         success: false,
-        error: error?.message || 'Gagal mendaftarkan akun baru.',
+        error: errorMessage,
       };
     }
 
@@ -164,10 +195,13 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       redirectTo: '/petani',
     };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem.';
+    const message =
+      err instanceof Error ? err.message : 'Terjadi gangguan jaringan atau server.';
+    console.error('[registerAction Error]:', message);
+
     return {
       success: false,
-      error: message,
+      error: 'Terjadi kesalahan sistem saat mendaftar. Silakan coba kembali.',
     };
   }
 }
@@ -176,7 +210,11 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
  * Server Action untuk proses Logout
  */
 export async function logoutAction(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.error('[logoutAction Error]:', err);
+  }
   redirect('/login');
 }
