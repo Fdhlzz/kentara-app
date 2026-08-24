@@ -1,5 +1,6 @@
+import Link from "next/link";
 import Image from "next/image";
-import { Sprout, ShieldCheck, Truck, Sparkles, Check, CreditCard } from "lucide-react";
+import { Sprout, ShieldCheck, Truck, Sparkles, Check, CreditCard, User } from "lucide-react";
 import { CheckoutDialog } from "@/components/midtrans/checkout-dialog";
 import { Badge } from "@/components/ui/badge";
 
@@ -61,10 +62,17 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-50/60 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300 transition min-h-[36px]"
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>Masuk</span>
+            </Link>
             <CheckoutDialog
               triggerLabel="Beli Cepat"
-              className="rounded-full px-4 py-2 text-sm"
+              className="rounded-full px-3.5 py-1.5 text-xs sm:text-sm"
             />
           </div>
         </div>
