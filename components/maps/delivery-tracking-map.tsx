@@ -12,11 +12,16 @@ import {
   CheckCircle2,
   AlertCircle,
   Route as RouteIcon,
+  MapPin,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LeafletMap } from '@/components/maps/leaflet-map';
+import {
+  ChangeCustomerLocationDialog,
+  type CustomerLocationData,
+} from '@/components/maps/change-customer-location-dialog';
 import {
   calculateDistanceKm,
   fetchRealRoadRoute,
@@ -31,9 +36,11 @@ export interface DeliveryTrackingMapProps {
   courierPhone?: string;
   initialCourierCoords?: [number, number];
   farmerName?: string;
+  farmerPhone?: string;
   farmerAddress?: string;
   farmerCoords?: [number, number];
   warehouseCoords?: [number, number];
+  allowChangeCustomerLocation?: boolean;
 }
 
 export function DeliveryTrackingMap({
@@ -43,14 +50,24 @@ export function DeliveryTrackingMap({
   courierPhone = '081234567890',
   initialCourierCoords,
   farmerName = 'Lahan Pertanian Pembeli (Bpk. Subardi)',
+  farmerPhone = '085156392978',
   farmerAddress = 'Jl. Perintis Kemerdekaan, Tamalanrea, Makassar',
   farmerCoords = [-5.1379367, 119.4357388], // Lokasi Pembeli / Buyer Mockup
   warehouseCoords = [-5.1215, 119.4195], // Gudang Distribusi Kentara Makassar
+  allowChangeCustomerLocation = true,
 }: DeliveryTrackingMapProps) {
+  // State Lokasi Pembeli / Customer yang dapat diubah oleh Kurir
+  const [customer, setCustomer] = useState<CustomerLocationData>({
+    name: farmerName,
+    phone: farmerPhone,
+    address: farmerAddress,
+    coords: farmerCoords,
+  });
+
   // Default courier fallback nearby if GPS is not yet acquired
   const fallbackCourier: [number, number] = initialCourierCoords || [
-    farmerCoords[0] - 0.015,
-    farmerCoords[1] - 0.018,
+    customer.coords[0] - 0.015,
+    customer.coords[1] - 0.018,
   ];
 
   const [courierPosition, setCourierPosition] = useState<[number, number]>(fallbackCourier);
@@ -105,13 +122,13 @@ export function DeliveryTrackingMap({
     );
   }, []);
 
-  // Fetch real road route geometry from OSRM whenever courierPosition or farmerCoords updates
+  // Fetch real road route geometry from OSRM whenever courierPosition or customer.coords updates
   useEffect(() => {
     let isCancelled = false;
 
     async function loadRoadRoute() {
       setIsCalculatingRoute(true);
-      const result = await fetchRealRoadRoute(courierPosition, farmerCoords);
+      const result = await fetchRealRoadRoute(courierPosition, customer.coords);
       if (!isCancelled) {
         setRoadRoute(result);
         setIsCalculatingRoute(false);
@@ -123,7 +140,7 @@ export function DeliveryTrackingMap({
     return () => {
       isCancelled = true;
     };
-  }, [courierPosition, farmerCoords]);
+  }, [courierPosition, customer.coords]);
 
   // Jarak dan estimasi waktu: utamakan rute jalan raya asli (OSRM), jika gagal gunakan kalkulasi Haversine
   const distanceKm =
@@ -132,8 +149,8 @@ export function DeliveryTrackingMap({
       : calculateDistanceKm(
           courierPosition[0],
           courierPosition[1],
-          farmerCoords[0],
-          farmerCoords[1]
+          customer.coords[0],
+          customer.coords[1]
         );
 
   const etaMinutes =
@@ -163,10 +180,11 @@ export function DeliveryTrackingMap({
     },
     {
       id: 'buyer-farmer',
-      position: farmerCoords,
-      title: `Tujuan Pembeli: ${farmerName}`,
-      description: farmerAddress,
+      position: customer.coords,
+      title: `Tujuan Pembeli: ${customer.name}`,
+      description: customer.address,
       type: 'farm',
+      phone: customer.phone,
       badgeText: 'Titik Lokasi Pembeli',
     },
   ];
@@ -174,7 +192,7 @@ export function DeliveryTrackingMap({
   const route: MapRouteData = {
     id: 'active-delivery-road-route',
     from: courierPosition,
-    to: farmerCoords,
+    to: customer.coords,
     geometryPoints: roadRoute?.geometry, // Real street navigation polyline points
     color: '#2563eb',
     distanceKm,
@@ -184,7 +202,7 @@ export function DeliveryTrackingMap({
 
   return (
     <Card className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Header Info Pesanan, Status GPS & Routing Engine */}
+      {/* Header Info Pesanan, Status GPS & Tombol Ubah Lokasi */}
       <div className="border-b border-zinc-100 dark:border-zinc-800 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/70 dark:bg-zinc-950/40">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -209,7 +227,7 @@ export function DeliveryTrackingMap({
             {/* Real Road Navigation Badge */}
             <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 text-[10px] px-2 py-0.5 flex items-center gap-1">
               <RouteIcon className="h-3 w-3 text-blue-600" />
-              <span>Rute Jalan Asli (OSRM)</span>
+              <span>Rute Jalan (OSRM)</span>
             </Badge>
           </div>
 
@@ -218,48 +236,55 @@ export function DeliveryTrackingMap({
           </h3>
         </div>
 
-        {/* Action Button & Live Routing Summary */}
-        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+        {/* Action Buttons & Summary Metrics */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {allowChangeCustomerLocation && (
+            <ChangeCustomerLocationDialog
+              currentCustomer={customer}
+              onCustomerLocationChange={setCustomer}
+            />
+          )}
+
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleManualLocate}
             disabled={isLocating || isCalculatingRoute}
-            className="h-10 px-3.5 rounded-xl border-blue-200 hover:bg-blue-50 text-blue-700 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/50 text-xs font-semibold cursor-pointer shadow-xs"
+            className="h-9 px-3 rounded-xl border-blue-200 hover:bg-blue-50 text-blue-700 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/50 text-xs font-semibold cursor-pointer shadow-xs"
           >
             {isLocating || isCalculatingRoute ? (
               <div className="flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>{isLocating ? 'Mencari GPS...' : 'Memuat Rute Jalan...'}</span>
+                <span>{isLocating ? 'Cari GPS...' : 'Hitung Rute...'}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
                 <Locate className="h-3.5 w-3.5" />
-                <span>Sinkronkan Lokasi Saya</span>
+                <span>GPS Saya</span>
               </div>
             )}
           </Button>
 
-          {/* Metric Card */}
-          <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
+          {/* Metric Badge Card */}
+          <div className="flex items-center gap-2.5 bg-white dark:bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
             <div className="flex items-center gap-1.5 text-xs">
               <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
               <div>
-                <span className="text-[10px] text-zinc-400 block leading-none">Estimasi Jalan</span>
-                <strong className="text-zinc-800 dark:text-zinc-200 font-bold">
+                <span className="text-[9px] text-zinc-400 block leading-none">ETA</span>
+                <strong className="text-zinc-800 dark:text-zinc-200 font-bold text-xs">
                   {etaMinutes} mnt
                 </strong>
               </div>
             </div>
 
-            <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
 
             <div className="flex items-center gap-1.5 text-xs">
               <Navigation className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
               <div>
-                <span className="text-[10px] text-zinc-400 block leading-none">Jarak Jalan</span>
-                <strong className="text-zinc-800 dark:text-zinc-200 font-bold">
+                <span className="text-[9px] text-zinc-400 block leading-none">Jarak</span>
+                <strong className="text-zinc-800 dark:text-zinc-200 font-bold text-xs">
                   {distanceKm} Km
                 </strong>
               </div>
@@ -287,7 +312,7 @@ export function DeliveryTrackingMap({
         />
       </div>
 
-      {/* Footer Courier & Buyer Destination Coordinates Info */}
+      {/* Footer Courier & Customer Destination Coordinates Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 sm:p-5 pt-1 border-t border-zinc-100 dark:border-zinc-800">
         {/* Info Lokasi Kurir */}
         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40">
@@ -324,25 +349,45 @@ export function DeliveryTrackingMap({
           )}
         </div>
 
-        {/* Info Lokasi Pembeli / Buyer */}
-        <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
-          <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
-            <Sprout className="h-5 w-5" />
+        {/* Info Lokasi Pembeli / Customer with Edit Button */}
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Sprout className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold block">
+                Titik Pembeli (Tujuan Lahan)
+              </span>
+              <strong className="text-xs sm:text-sm text-zinc-900 dark:text-white block truncate">
+                {customer.name}
+              </strong>
+              <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block">
+                {customer.coords[0].toFixed(6)}, {customer.coords[1].toFixed(6)}
+              </span>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                {customer.address}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold block">
-              Titik Pembeli (Tujuan Lahan)
-            </span>
-            <strong className="text-xs sm:text-sm text-zinc-900 dark:text-white block truncate">
-              {farmerName}
-            </strong>
-            <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block">
-              -5.1379367, 119.4357388
-            </span>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-              {farmerAddress}
-            </p>
-          </div>
+
+          {allowChangeCustomerLocation && (
+            <ChangeCustomerLocationDialog
+              currentCustomer={customer}
+              onCustomerLocationChange={setCustomer}
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl border-emerald-300 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950 shrink-0 ml-2 cursor-pointer shadow-xs"
+                  title="Ubah Lokasi Pembeli"
+                >
+                  <MapPin className="h-4 w-4 text-emerald-600" />
+                </Button>
+              }
+            />
+          )}
         </div>
       </div>
     </Card>
