@@ -119,15 +119,14 @@ export default async function PetaniPage() {
           </div>
 
           <DeliveryTrackingMap
-            orderId="KNT-ORD-5542"
+            orderId="KNT-ORD-MKS-5542"
             seedName="Benih Padi Inpari 32 Bersertifikat (10 Kg)"
             courierName="Budi Santoso (Kurir Kentara)"
             courierPhone="081987654321"
-            courierCoords={[-7.262, 112.742]}
             farmerName={profile.full_name}
-            farmerAddress="Lahan Pertanian Krajan Kidul, Jawa Timur"
-            farmerCoords={[-7.288, 112.782]}
-            warehouseCoords={[-7.242, 112.732]}
+            farmerAddress="Jl. Perintis Kemerdekaan, Tamalanrea, Kota Makassar"
+            farmerCoords={[-5.1379367, 119.4357388]} // Titik Lokasi Pembeli
+            warehouseCoords={[-5.1215, 119.4195]} // Gudang Benih Kentara Makassar
           />
         </section>
       </main>

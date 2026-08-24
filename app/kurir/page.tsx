@@ -102,13 +102,13 @@ export default async function KurirPage() {
           </div>
         </div>
 
-        {/* Live Delivery Map Tracking Section */}
+        {/* Live Delivery Map Tracking Section with Buyer Mockup at -5.1379367, 119.4357388 */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-blue-600" />
               <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white">
-                Rute Pengantaran Benih Aktif (Leaflet Maps)
+                Rute Pengantaran Benih (Lokasi Anda ➔ Pembeli)
               </h2>
             </div>
             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs px-2.5 py-0.5">
@@ -117,15 +117,14 @@ export default async function KurirPage() {
           </div>
 
           <DeliveryTrackingMap
-            orderId="KNT-EXP-9921"
-            seedName="Benih Jagung Hibrida Pioneer P35 (10 Kg)"
+            orderId="KNT-EXP-MKS-9921"
+            seedName="Benih Padi Inpari 32 Bersertifikat (10 Kg)"
             courierName={profile.full_name}
             courierPhone={profile.phone || '08123456789'}
-            courierCoords={[-7.265, 112.748]}
-            farmerName="Kelompok Tani Subur Makmur (Bpk. Subardi)"
-            farmerAddress="Dusun Krajan, Desa Karanganyar, Kab. Malang"
-            farmerCoords={[-7.295, 112.795]}
-            warehouseCoords={[-7.242, 112.732]}
+            farmerName="Bpk. Subardi (Petani Pembeli)"
+            farmerAddress="Jl. Perintis Kemerdekaan, Tamalanrea, Kota Makassar"
+            farmerCoords={[-5.1379367, 119.4357388]} // Titik Lokasi Pembeli Mockup
+            warehouseCoords={[-5.1215, 119.4195]} // Gudang Benih Kentara Makassar
           />
         </section>
       </main>
