@@ -1,11 +1,21 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, User, Mail, Phone, ArrowLeft, ShieldAlert } from 'lucide-react';
+import {
+  ShieldAlert,
+  Mail,
+  Truck,
+  Sprout,
+  Users,
+  ArrowLeft,
+  ShieldCheck,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
+import { getAdminDashboardStats, getCouriersList } from '@/lib/admin/courier-actions';
 import { LogoutButton } from '@/components/auth/logout-button';
+import { CourierManager } from '@/components/admin/courier-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,111 +31,154 @@ export default async function AdminPage() {
     redirect(`/${profile.role}`);
   }
 
+  const [stats, couriers] = await Promise.all([
+    getAdminDashboardStats(),
+    getCouriersList(),
+  ]);
+
   return (
     <div className="min-h-screen flex flex-col bg-emerald-950/5 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       {/* Header Bar */}
       <header className="sticky top-0 z-40 border-b border-emerald-900/10 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Image
               src="/icons/icon-192x192.png"
               alt="Logo Kentara"
-              width={34}
-              height={34}
+              width={36}
+              height={36}
               className="rounded-xl shadow-xs"
+              priority
             />
-            <span className="text-lg font-bold text-emerald-800 dark:text-emerald-400">
-              Kentara Admin
-            </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold tracking-tight text-emerald-800 dark:text-emerald-400">
+                  Kentara
+                </span>
+                <Badge className="bg-purple-600 text-white text-[10px] px-2 py-0.5">
+                  Admin Panel
+                </Badge>
+              </div>
+              <span className="text-[10px] text-zinc-500 font-medium">
+                Pusat Kendali Marketplace
+              </span>
+            </div>
           </div>
 
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-zinc-600 hover:text-emerald-700 dark:text-zinc-400 transition"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Beranda</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-zinc-600 hover:text-emerald-700 dark:text-zinc-400 transition"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Lihat Marketplace</span>
+            </Link>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md space-y-6">
-          <Card className="rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 space-y-6 text-center">
-            {/* Avatar & Role Badge */}
-            <div className="flex flex-col items-center space-y-3">
-              <div className="h-20 w-20 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 flex items-center justify-center shadow-inner">
-                <ShieldAlert className="h-10 w-10" />
-              </div>
-
-              <div>
-                <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Welcome & Admin Profile Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 flex items-center justify-center shadow-xs shrink-0">
+              <ShieldAlert className="h-7 w-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-white">
                   {profile.full_name}
                 </h1>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Panel Administrator Kentara
-                </p>
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 text-xs">
+                  {profile.role.toUpperCase()}
+                </Badge>
               </div>
-
-              <Badge className="bg-purple-600 text-white hover:bg-purple-600 px-3.5 py-1 text-xs font-bold uppercase tracking-wider rounded-full shadow-xs">
-                Peran: {profile.role}
-              </Badge>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {profile.email || 'admin@kentara.com'}
+                </span>
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <ShieldCheck className="h-3 w-3" />
+                  Akses Sistem Penuh
+                </span>
+              </p>
             </div>
+          </div>
 
-            {/* Informasi Detail Akun */}
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-950/50 p-4 text-left space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500 text-xs flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" />
-                  Nama
-                </span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  {profile.full_name}
-                </span>
-              </div>
+          <div className="flex items-center gap-2 self-end md:self-center">
+            <LogoutButton className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-4 py-2" />
+          </div>
+        </div>
 
-              {profile.email && (
-                <div className="flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/80 pt-2.5">
-                  <span className="text-zinc-500 text-xs flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" />
-                    Email
-                  </span>
-                  <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200">
-                    {profile.email}
-                  </span>
-                </div>
-              )}
-
-              {profile.phone && (
-                <div className="flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/80 pt-2.5">
-                  <span className="text-zinc-500 text-xs flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5" />
-                    WhatsApp
-                  </span>
-                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                    {profile.phone}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/80 pt-2.5">
-                <span className="text-zinc-500 text-xs flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
-                  Status Hak Akses
-                </span>
-                <span className="text-xs font-bold text-purple-700 dark:text-purple-400">
-                  Akses Penuh (Admin)
-                </span>
+        {/* Stats Metrics Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Mitra Kurir</span>
+              <div className="p-2 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50">
+                <Truck className="h-4 w-4" />
               </div>
             </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">
+                {stats.totalKurir}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Akun kurir aktif</p>
+            </div>
+          </Card>
 
-            {/* Logout Button */}
-            <div className="pt-2">
-              <LogoutButton className="w-full bg-rose-600 hover:bg-rose-700 text-white" />
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Mitra Petani</span>
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
+                <Sprout className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                {stats.totalPetani}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Pembeli &amp; petani</p>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Total Akun</span>
+              <div className="p-2 rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <Users className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-zinc-900 dark:text-white">
+                {stats.totalUsers}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Seluruh pengguna</p>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Admin Platform</span>
+              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/50">
+                <ShieldAlert className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
+                {stats.totalAdmin}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Pengelola sistem</p>
             </div>
           </Card>
         </div>
+
+        {/* Courier Management Menu / Section */}
+        <section className="space-y-4">
+          <CourierManager initialCouriers={couriers} />
+        </section>
       </main>
     </div>
   );
