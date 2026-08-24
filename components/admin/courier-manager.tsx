@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Truck,
@@ -34,6 +35,7 @@ import {
 } from '@/lib/admin/courier-actions';
 
 export function CourierManager({ initialCouriers }: { initialCouriers: CourierUser[] }) {
+  const router = useRouter();
   const [couriers, setCouriers] = useState<CourierUser[]>(initialCouriers);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -115,6 +117,7 @@ export function CourierManager({ initialCouriers }: { initialCouriers: CourierUs
         },
         ...couriers,
       ]);
+      router.refresh();
     });
   };
 
@@ -164,6 +167,7 @@ export function CourierManager({ initialCouriers }: { initialCouriers: CourierUs
         )
       );
       setSelectedCourier(null);
+      router.refresh();
     });
   };
 
@@ -190,6 +194,7 @@ export function CourierManager({ initialCouriers }: { initialCouriers: CourierUs
       // Remove from local state
       setCouriers(couriers.filter((c) => c.id !== selectedCourier.id));
       setSelectedCourier(null);
+      router.refresh();
     });
   };
 
