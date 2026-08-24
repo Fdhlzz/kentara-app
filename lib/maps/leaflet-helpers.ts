@@ -60,8 +60,11 @@ export interface RoadRouteResult {
   isSuccess: boolean;
 }
 
+const routeCache = new Map<string, RoadRouteResult>();
+
 /**
  * Mengambil geometri rute jalan asli (Real Road Routing) menggunakan OSRM Driving Engine
+ * Dilengkapi in-memory caching untuk kecepatan instan (0ms) pada koordinat yang sama
  */
 export async function fetchRealRoadRoute(
   from: [number, number],
@@ -69,6 +72,12 @@ export async function fetchRealRoadRoute(
 ): Promise<RoadRouteResult> {
   const [lat1, lng1] = from;
   const [lat2, lng2] = to;
+
+  // Cache key dibulatkan ke 4 desimal (~10 meter) untuk menghindari request berulang
+  const cacheKey = `${lat1.toFixed(4)},${lng1.toFixed(4)}->${lat2.toFixed(4)},${lng2.toFixed(4)}`;
+  if (routeCache.has(cacheKey)) {
+    return routeCache.get(cacheKey)!;
+  }
 
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`;
@@ -92,12 +101,21 @@ export async function fetchRealRoadRoute(
     const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
     const durationMinutes = Math.max(1, Math.round(route.duration / 60));
 
-    return {
+    const result: RoadRouteResult = {
       geometry,
       distanceKm,
       durationMinutes,
       isSuccess: true,
     };
+
+    // Simpan ke cache (maksimal 50 entri)
+    if (routeCache.size >= 50) {
+      const firstKey = routeCache.keys().next().value;
+      if (firstKey) routeCache.delete(firstKey);
+    }
+    routeCache.set(cacheKey, result);
+
+    return result;
   } catch (err) {
     console.warn('[Real Road Routing Fallback]:', err);
     // Fallback to straight line
