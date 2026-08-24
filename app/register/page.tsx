@@ -14,38 +14,11 @@ import {
   Loader2,
   ArrowLeft,
   Sprout,
-  Truck,
-  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { registerAction } from '@/lib/auth/actions';
-import type { UserRole } from '@/types/auth';
-
-const ROLES: Array<{
-  id: UserRole;
-  title: string;
-  desc: string;
-  icon: typeof Sprout;
-}> = [
-  {
-    id: 'petani',
-    title: 'Petani / Pembeli',
-    desc: 'Beli dan kelola pesanan benih unggul',
-    icon: Sprout,
-  },
-  {
-    id: 'kurir',
-    title: 'Kurir Pengiriman',
-    desc: 'Antar benih ke alamat petani di lahan',
-    icon: Truck,
-  },
-  {
-    id: 'admin',
-    title: 'Admin Platform',
-    desc: 'Kelola marketplace dan katalog benih',
-    icon: ShieldAlert,
-  },
-];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -55,7 +28,6 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('petani');
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -78,7 +50,6 @@ export default function RegisterPage() {
     formData.append('phone', phone);
     formData.append('email', email);
     formData.append('password', password);
-    formData.append('role', selectedRole);
 
     startTransition(async () => {
       const res = await registerAction(formData);
@@ -88,13 +59,13 @@ export default function RegisterPage() {
       }
 
       toast.success('Pendaftaran Berhasil!', {
-        description: `Selamat datang di Kentara sebagai ${selectedRole.toUpperCase()}.`,
+        description: 'Selamat datang di Kentara! Mengarahkan ke dashboard Petani...',
       });
 
       if (res.redirectTo) {
         router.push(res.redirectTo);
       } else {
-        router.push(`/${selectedRole}`);
+        router.push('/petani');
       }
     });
   };
@@ -126,51 +97,25 @@ export default function RegisterPage() {
             />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-            Daftar Akun Kentara
+            Daftar Akun Petani
           </h1>
           <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Bergabunglah dengan ekosistem marketplace benih pertanian
+            Daftar untuk membeli benih bersertifikasi dan pantau riwayat pesanan Anda
           </p>
+
+          <div className="pt-2">
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100 px-3 py-1 text-xs">
+              <Sprout className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+              Peran: Petani / Pembeli Benih
+            </Badge>
+          </div>
         </div>
 
         {/* Form Registrasi */}
         <form onSubmit={handleRegister} className="space-y-4">
-          {/* Pilihan Role */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
-              Pilih Peran Akun (Role) *
-            </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {ROLES.map((role) => {
-                const IconComponent = role.icon;
-                const isSelected = selectedRole === role.id;
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => setSelectedRole(role.id)}
-                    disabled={isPending}
-                    className={`flex flex-col items-center text-center p-3 rounded-xl border transition text-xs ${
-                      isSelected
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold shadow-xs dark:bg-emerald-950/60 dark:border-emerald-500 dark:text-emerald-200'
-                        : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400'
-                    }`}
-                  >
-                    <IconComponent
-                      className={`h-5 w-5 mb-1 ${
-                        isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'
-                      }`}
-                    />
-                    <span className="font-semibold">{role.title.split('/')[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              Nama Lengkap *
+              Nama Lengkap Petani / Kelompok Tani *
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
@@ -180,7 +125,7 @@ export default function RegisterPage() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Bpk. Hendra Gunawan"
+                placeholder="Contoh: Bpk. Budi Santoso"
                 required
                 disabled={isPending}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 min-h-[44px] transition"
@@ -190,7 +135,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              Nomor WhatsApp / Telepon
+              Nomor WhatsApp / HP Aktif
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
@@ -200,7 +145,7 @@ export default function RegisterPage() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="081234567890"
+                placeholder="Contoh: 081234567890"
                 disabled={isPending}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 min-h-[44px] transition"
               />
@@ -219,7 +164,7 @@ export default function RegisterPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="petani@kentara.id"
+                placeholder="petani@email.com"
                 required
                 disabled={isPending}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 min-h-[44px] transition"
@@ -256,19 +201,19 @@ export default function RegisterPage() {
             {isPending ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Mendaftarkan Akun...</span>
+                <span>Mendaftarkan Akun Petani...</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
-                <span>Daftar Sebagai {selectedRole.toUpperCase()}</span>
+                <span>Daftar Akun Petani</span>
               </div>
             )}
           </Button>
         </form>
 
         {/* Footer Navigasi */}
-        <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 text-center">
+        <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 text-center space-y-3">
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
             Sudah memiliki akun?{' '}
             <Link
@@ -278,6 +223,11 @@ export default function RegisterPage() {
               Masuk Sekarang
             </Link>
           </p>
+
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Akun Admin &amp; Kurir dikonfigurasi melalui database</span>
+          </div>
         </div>
       </div>
     </div>

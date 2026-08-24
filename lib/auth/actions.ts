@@ -108,14 +108,14 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 }
 
 /**
- * Server Action untuk proses Registrasi
+ * Server Action untuk proses Registrasi (Khusus Pendaftaran Petani / Pembeli)
  */
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
   const fullName = String(formData.get('full_name') || '').trim();
   const phone = String(formData.get('phone') || '').trim();
   const email = String(formData.get('email') || '').trim();
   const password = String(formData.get('password') || '');
-  const roleInput = String(formData.get('role') || 'petani').toLowerCase() as UserRole;
+  const role: UserRole = 'petani'; // Registrasi publik dikhususkan untuk role Petani
 
   if (!fullName) {
     return { success: false, error: 'Nama lengkap wajib diisi.' };
@@ -129,10 +129,6 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       error: 'Kata sandi minimal harus terdiri dari 6 karakter.',
     };
   }
-
-  const role: UserRole = ['admin', 'petani', 'kurir'].includes(roleInput)
-    ? roleInput
-    : 'petani';
 
   try {
     const supabase = await createClient();
@@ -163,11 +159,9 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       role: role,
     });
 
-    const targetPath = `/${role}`;
-
     return {
       success: true,
-      redirectTo: targetPath,
+      redirectTo: '/petani',
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem.';
