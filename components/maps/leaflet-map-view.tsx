@@ -193,17 +193,24 @@ export default function LeafletMapView({
       }
 
       if (route) {
-        const polyline = L.polyline([route.from, route.to], {
+        const polylinePoints =
+          route.geometryPoints && route.geometryPoints.length > 0
+            ? route.geometryPoints
+            : [route.from, route.to];
+
+        const polyline = L.polyline(polylinePoints, {
           color: route.color || '#2563eb',
-          weight: 4,
-          opacity: 0.85,
-          dashArray: route.dashArray || '6, 8',
+          weight: 5,
+          opacity: 0.9,
+          lineJoin: 'round',
+          lineCap: 'round',
+          dashArray: route.dashArray || undefined,
         }).addTo(map);
 
         routeLayerRef.current = polyline;
 
         // Auto-fit bounds
-        const bounds = L.latLngBounds([route.from, route.to]);
+        const bounds = L.latLngBounds(polylinePoints);
         map.fitBounds(bounds, { padding: [50, 50] });
       }
     });

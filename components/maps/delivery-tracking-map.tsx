@@ -11,12 +11,17 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Route as RouteIcon,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LeafletMap } from '@/components/maps/leaflet-map';
-import { calculateDistanceKm } from '@/lib/maps/leaflet-helpers';
+import {
+  calculateDistanceKm,
+  fetchRealRoadRoute,
+  type RoadRouteResult,
+} from '@/lib/maps/leaflet-helpers';
 import type { MapMarkerData, MapRouteData } from '@/types/maps';
 
 export interface DeliveryTrackingMapProps {
@@ -53,7 +58,11 @@ export function DeliveryTrackingMap({
   const [isLocating, setIsLocating] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Handler interaktif untuk tombol klik pengguna
+  // Real road routing state
+  const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
+  // Handler interaktif untuk tombol sinkronisasi GPS
   const handleManualLocate = () => {
     if (!navigator.geolocation) {
       setGpsError('Geolocation tidak didukung pada peramban ini.');
@@ -96,16 +105,41 @@ export function DeliveryTrackingMap({
     );
   }, []);
 
-  // Hitung jarak real-time dari posisi kurir saat ini ke titik pembeli
-  const distanceKm = calculateDistanceKm(
-    courierPosition[0],
-    courierPosition[1],
-    farmerCoords[0],
-    farmerCoords[1]
-  );
+  // Fetch real road route geometry from OSRM whenever courierPosition or farmerCoords updates
+  useEffect(() => {
+    let isCancelled = false;
 
-  // Estimasi waktu tempuh berdasarkan jarak aktual (kecepatan rata-rata 35 km/jam)
-  const etaMinutes = Math.max(5, Math.round((distanceKm / 35) * 60));
+    async function loadRoadRoute() {
+      setIsCalculatingRoute(true);
+      const result = await fetchRealRoadRoute(courierPosition, farmerCoords);
+      if (!isCancelled) {
+        setRoadRoute(result);
+        setIsCalculatingRoute(false);
+      }
+    }
+
+    loadRoadRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courierPosition, farmerCoords]);
+
+  // Jarak dan estimasi waktu: utamakan rute jalan raya asli (OSRM), jika gagal gunakan kalkulasi Haversine
+  const distanceKm =
+    roadRoute?.distanceKm !== undefined
+      ? roadRoute.distanceKm
+      : calculateDistanceKm(
+          courierPosition[0],
+          courierPosition[1],
+          farmerCoords[0],
+          farmerCoords[1]
+        );
+
+  const etaMinutes =
+    roadRoute?.durationMinutes !== undefined
+      ? roadRoute.durationMinutes
+      : Math.max(5, Math.round((distanceKm / 35) * 60));
 
   const markers: MapMarkerData[] = [
     {
@@ -138,18 +172,19 @@ export function DeliveryTrackingMap({
   ];
 
   const route: MapRouteData = {
-    id: 'active-delivery-route',
+    id: 'active-delivery-road-route',
     from: courierPosition,
     to: farmerCoords,
+    geometryPoints: roadRoute?.geometry, // Real street navigation polyline points
     color: '#2563eb',
-    dashArray: '8, 8',
     distanceKm,
     estimatedMinutes: etaMinutes,
+    isRealRoadRoute: roadRoute?.isSuccess ?? false,
   };
 
   return (
     <Card className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Header Info Pesanan & Status GPS */}
+      {/* Header Info Pesanan, Status GPS & Routing Engine */}
       <div className="border-b border-zinc-100 dark:border-zinc-800 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/70 dark:bg-zinc-950/40">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -157,10 +192,12 @@ export function DeliveryTrackingMap({
             <Badge className="bg-blue-600 text-white text-[10px] px-2 py-0.5 animate-pulse">
               Pengantaran Aktif
             </Badge>
+
+            {/* GPS Status */}
             {isGpsActive ? (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] px-2 py-0.5 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                <span>GPS Perangkat Terhubung</span>
+                <span>GPS Terhubung</span>
               </Badge>
             ) : (
               <Badge className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 text-[10px] px-2 py-0.5 flex items-center gap-1">
@@ -168,26 +205,33 @@ export function DeliveryTrackingMap({
                 <span>Mode Simulasi</span>
               </Badge>
             )}
+
+            {/* Real Road Navigation Badge */}
+            <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <RouteIcon className="h-3 w-3 text-blue-600" />
+              <span>Rute Jalan Asli (OSRM)</span>
+            </Badge>
           </div>
+
           <h3 className="text-base sm:text-lg font-extrabold text-zinc-900 dark:text-white">
             {seedName}
           </h3>
         </div>
 
-        {/* Action Button & ETA Summary */}
+        {/* Action Button & Live Routing Summary */}
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleManualLocate}
-            disabled={isLocating}
+            disabled={isLocating || isCalculatingRoute}
             className="h-10 px-3.5 rounded-xl border-blue-200 hover:bg-blue-50 text-blue-700 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/50 text-xs font-semibold cursor-pointer shadow-xs"
           >
-            {isLocating ? (
+            {isLocating || isCalculatingRoute ? (
               <div className="flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Mencari GPS...</span>
+                <span>{isLocating ? 'Mencari GPS...' : 'Memuat Rute Jalan...'}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
@@ -202,7 +246,7 @@ export function DeliveryTrackingMap({
             <div className="flex items-center gap-1.5 text-xs">
               <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
               <div>
-                <span className="text-[10px] text-zinc-400 block leading-none">ETA</span>
+                <span className="text-[10px] text-zinc-400 block leading-none">Estimasi Jalan</span>
                 <strong className="text-zinc-800 dark:text-zinc-200 font-bold">
                   {etaMinutes} mnt
                 </strong>
@@ -214,7 +258,7 @@ export function DeliveryTrackingMap({
             <div className="flex items-center gap-1.5 text-xs">
               <Navigation className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
               <div>
-                <span className="text-[10px] text-zinc-400 block leading-none">Jarak</span>
+                <span className="text-[10px] text-zinc-400 block leading-none">Jarak Jalan</span>
                 <strong className="text-zinc-800 dark:text-zinc-200 font-bold">
                   {distanceKm} Km
                 </strong>
@@ -231,14 +275,14 @@ export function DeliveryTrackingMap({
         </div>
       )}
 
-      {/* Interactive Leaflet Map Component with Polyline Route & Pinpoints */}
+      {/* Interactive Leaflet Map Component with Real Road Polyline Navigation */}
       <div className="p-3 sm:p-4">
         <LeafletMap
           center={courierPosition}
           zoom={13}
           markers={markers}
           route={route}
-          height="400px"
+          height="420px"
           className="rounded-2xl"
         />
       </div>
@@ -254,7 +298,7 @@ export function DeliveryTrackingMap({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold block">
-                  Lokasi Kurir (Asal Rute)
+                  Titik Kurir (Asal Rute)
                 </span>
                 {isGpsActive && (
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
@@ -287,7 +331,7 @@ export function DeliveryTrackingMap({
           </div>
           <div className="min-w-0">
             <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold block">
-              Lokasi Pembeli (Titik Tujuan)
+              Titik Pembeli (Tujuan Lahan)
             </span>
             <strong className="text-xs sm:text-sm text-zinc-900 dark:text-white block truncate">
               {farmerName}

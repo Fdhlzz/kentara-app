@@ -53,6 +53,65 @@ export function calculateDistanceKm(
   return Math.round(R * c * 10) / 10;
 }
 
+export interface RoadRouteResult {
+  geometry: [number, number][]; // Array titik koordinat jalan [lat, lng][]
+  distanceKm: number;
+  durationMinutes: number;
+  isSuccess: boolean;
+}
+
+/**
+ * Mengambil geometri rute jalan asli (Real Road Routing) menggunakan OSRM Driving Engine
+ */
+export async function fetchRealRoadRoute(
+  from: [number, number],
+  to: [number, number]
+): Promise<RoadRouteResult> {
+  const [lat1, lng1] = from;
+  const [lat2, lng2] = to;
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+
+    if (!res.ok) {
+      throw new Error(`OSRM HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+      throw new Error('No road route found');
+    }
+
+    const route = data.routes[0];
+    // OSRM coordinates are [lng, lat], convert to Leaflet's [lat, lng]
+    const geometry: [number, number][] = route.geometry.coordinates.map(
+      (c: [number, number]) => [c[1], c[0]]
+    );
+
+    const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+    const durationMinutes = Math.max(1, Math.round(route.duration / 60));
+
+    return {
+      geometry,
+      distanceKm,
+      durationMinutes,
+      isSuccess: true,
+    };
+  } catch (err) {
+    console.warn('[Real Road Routing Fallback]:', err);
+    // Fallback to straight line
+    const distanceKm = calculateDistanceKm(lat1, lng1, lat2, lng2);
+    const durationMinutes = Math.max(5, Math.round((distanceKm / 35) * 60));
+    return {
+      geometry: [from, to],
+      distanceKm,
+      durationMinutes,
+      isSuccess: false,
+    };
+  }
+}
+
 /**
  * Membuat Custom DivIcon untuk Leaflet berdasarkan tipe marker
  */
