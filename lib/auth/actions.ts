@@ -1,13 +1,15 @@
 'use server';
 
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { AuthActionResult, UserProfile, UserRole } from '@/types/auth';
 
 /**
  * Mendapatkan profil pengguna saat ini beserta email dari Supabase Auth
+ * Di-memoize per-request dengan React cache
  */
-export async function getCurrentUserProfile(): Promise<UserProfile | null> {
+export const getCurrentUserProfile = cache(async (): Promise<UserProfile | null> => {
   try {
     const supabase = await createClient();
     const {
@@ -51,7 +53,7 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     console.error('[getCurrentUserProfile Error]:', err);
     return null;
   }
-}
+});
 
 /**
  * Server Action untuk proses Login dengan penanganan error komprehensif

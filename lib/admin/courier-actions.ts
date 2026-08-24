@@ -22,20 +22,26 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.from('profiles').select('role');
-    if (error || !data) {
-      return { totalPetani: 0, totalKurir: 0, totalAdmin: 0, totalUsers: 0 };
+    const { data: stats, error } = await supabase.rpc('admin_get_stats');
+    if (!error && stats) {
+      return {
+        totalPetani: Number(stats.totalPetani || 0),
+        totalKurir: Number(stats.totalKurir || 0),
+        totalAdmin: Number(stats.totalAdmin || 0),
+        totalUsers: Number(stats.totalUsers || 0),
+      };
     }
 
-    const totalPetani = data.filter((p) => p.role === 'petani').length;
-    const totalKurir = data.filter((p) => p.role === 'kurir').length;
-    const totalAdmin = data.filter((p) => p.role === 'admin').length;
+    // Fallback if RPC fails
+    const { count: totalUsers } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
 
     return {
-      totalPetani,
-      totalKurir,
-      totalAdmin,
-      totalUsers: data.length,
+      totalPetani: 0,
+      totalKurir: 0,
+      totalAdmin: 0,
+      totalUsers: totalUsers || 0,
     };
   } catch (err) {
     console.error('[getAdminDashboardStats Error]:', err);

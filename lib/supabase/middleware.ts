@@ -2,6 +2,40 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Lindungi rute-rute khusus role (/admin, /petani, /kurir)
+  const isProtectedRoleRoute =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/petani') ||
+    pathname.startsWith('/kurir');
+
+  const isAuthRoute = pathname === '/login' || pathname === '/register';
+
+  // Fast-path: untuk rute publik umum seperti beranda, webhook, dan api publik,
+  // lewati autentikasi remote untuk menghasilkan TTFB super cepat (<10ms).
+  if (!isProtectedRoleRoute && !isAuthRoute) {
+    return NextResponse.next({ request });
+  }
+
+  // Cek apakah ada cookie token Supabase sama sekali di request
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'));
+
+  // Jika pengunjung belum login dan mencoba mengakses rute terproteksi, langsung redirect ke /login
+  if (isProtectedRoleRoute && !hasAuthCookie) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // Jika di halaman auth (/login, /register) dan tidak ada cookie auth, langsung render
+  if (isAuthRoute && !hasAuthCookie) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -29,17 +63,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  // Ambil data user dari session token
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-
-  // Lindungi rute-rute khusus role (/admin, /petani, /kurir)
-  const isProtectedRoleRoute =
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/petani') ||
-    pathname.startsWith('/kurir');
 
   if (isProtectedRoleRoute && !user) {
     const url = request.nextUrl.clone();
@@ -48,8 +75,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Jika user sudah login dan mengakses /login atau /register, arahkan ke halamannya
-  const isAuthRoute = pathname === '/login' || pathname === '/register';
   if (isAuthRoute && user) {
     const role = user.user_metadata?.role || 'petani';
     const url = request.nextUrl.clone();
