@@ -11,6 +11,26 @@
 
 ---
 
+## 📱 Panduan Pengembangan: Mobile-First Focus
+
+> [!IMPORTANT]
+> **Aplikasi ini diutamakan untuk versi mobile (Mobile-First Experience).** Semua pengembangan fitur dan antarmuka masa depan **wajib memprioritaskan tata letak, kenyamanan, dan performa pada perangkat mobile** menggunakan kombinasi **shadcn/ui** dan **Tailwind CSS**.
+
+### Prinsip Desain Mobile UI:
+1. **Komponen shadcn/ui & Tailwind CSS:**
+   - Gunakan komponen shadcn/ui (Button, Dialog, Sheet/Drawer, Card, Tabs, Input, Select, Badge, Skeleton, dll.) yang disesuaikan dengan tema hijau pertanian (*emerald / forest green*).
+   - Manfaatkan utility classes Tailwind CSS v4 untuk styling yang fleksibel, konsisten, dan ringan.
+2. **Thumb-Friendly Touch Targets:**
+   - Semua tombol dan elemen interaktif memiliki area sentuh minimal `44x44px` agar nyaman diakses satu tangan oleh petani/pengguna di lapangan.
+3. **Pola Navigasi Mobile:**
+   - Prioritaskan *Bottom Navigation Bar* untuk navigasi utama (Beranda, Katalog Benih, Transaksi, Akun).
+   - Gunakan *Sheet / Bottom Drawer* untuk filter pencarian, varietas benih, dan keranjang belanja.
+4. **Safe Area & Responsivitas:**
+   - Pastikan layout mendukung notch dan gesture bar (`viewport-fit=cover`, safe area padding).
+   - Tampilan desktop tetap rapi (misal: layout max-width terpusat atau responsive expanded view) dengan basis mobile yang solid.
+
+---
+
 ## 🚀 Fitur Utama
 
 - 🛒 **Katalog & Belanja Benih:** Pencarian, filter varietas benih, spesifikasi daya tumbuh, masa panen, dan rekomendasi iklim tanam.
@@ -25,6 +45,7 @@
 
 * **Framework:** [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
 * **Library UI:** [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
+* **Icons:** [Lucide React](https://lucide.dev/)
 * **Database & Auth:** [Supabase](https://supabase.com/) (`@supabase/ssr`, PostgreSQL 17)
 * **PWA Engine:** Web App Manifest (`app/manifest.ts`), Custom Service Worker (`public/sw.js`)
 * **Deployment & CI/CD:** [Vercel](https://vercel.com/), [GitHub Actions](https://github.com/features/actions)
@@ -65,7 +86,7 @@ Aplikasi Kentara dilengkapi dengan konfigurasi PWA standar:
    npm run dev
    ```
 
-5. Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
+5. Buka [http://localhost:3000](http://localhost:3000) di browser Anda (disarankan membuka dalam mobile device emulation di DevTools).
 
 ---
 
