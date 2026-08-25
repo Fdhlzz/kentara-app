@@ -8,7 +8,7 @@ import {
 
 interface UseCourierLocationTrackerOptions {
   orderId?: string | null;
-  isActive: boolean; // active when delivery task is open & in progress
+  isActive: boolean; // active when delivery task modal is open
   minDistanceMeters?: number; // default: 10m
   minIntervalMs?: number; // default: 10,000ms (10s)
 }
@@ -44,6 +44,8 @@ export function useCourierLocationTracker({
   const [speed, setSpeed] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [isGpsActive, setIsGpsActive] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
 
   const lastDispatchedRef = useRef<{
@@ -83,6 +85,51 @@ export function useCourierLocationTracker({
     [orderId]
   );
 
+  // Function to manually request and recenter GPS position
+  const requestCurrentLocation = useCallback(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGpsError('Geolocation tidak didukung pada perangkat ini.');
+      return;
+    }
+
+    setIsLocating(true);
+    setGpsError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, heading: hd, speed: sp, accuracy: acc } = position.coords;
+        const lat = latitude;
+        const lng = longitude;
+        const currHeading = hd || 0;
+        const currSpeed = sp ? Math.round(sp * 3.6) : 0; // convert m/s to km/h
+
+        setCurrentPosition([lat, lng]);
+        setHeading(currHeading);
+        setSpeed(currSpeed);
+        setAccuracy(acc ? Math.round(acc) : null);
+        setIsGpsActive(true);
+        setIsLocating(false);
+
+        // Immediate first sync
+        syncLocationToBackend(lat, lng, currHeading, sp || 0, acc || null);
+      },
+      (error) => {
+        console.warn('[Courier Geolocation Error]:', error.message);
+        setGpsError(
+          error.code === 1
+            ? 'Izin akses lokasi ditolak. Mohon aktifkan GPS peramban.'
+            : 'Mencari sinyal GPS perangkat...'
+        );
+        setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  }, [syncLocationToBackend]);
+
   useEffect(() => {
     if (!isActive || typeof window === 'undefined' || !navigator.geolocation) {
       if (!isActive && lastDispatchedRef.current) {
@@ -92,19 +139,24 @@ export function useCourierLocationTracker({
       return;
     }
 
+    // 1. Initial immediate GPS acquisition
+    requestCurrentLocation();
+
+    // 2. High-accuracy continuous GPS watch
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, heading: hd, speed: sp, accuracy: acc } = position.coords;
         const lat = latitude;
         const lng = longitude;
         const currHeading = hd || 0;
-        const currSpeed = sp || 0;
+        const currSpeed = sp ? Math.round(sp * 3.6) : 0; // km/h
 
         setCurrentPosition([lat, lng]);
         setHeading(currHeading);
         setSpeed(currSpeed);
-        setAccuracy(acc || null);
+        setAccuracy(acc ? Math.round(acc) : null);
         setIsGpsActive(true);
+        setGpsError(null);
 
         const now = Date.now();
         const last = lastDispatchedRef.current;
@@ -124,17 +176,16 @@ export function useCourierLocationTracker({
         }
 
         if (shouldSync) {
-          syncLocationToBackend(lat, lng, currHeading, currSpeed, acc || null);
+          syncLocationToBackend(lat, lng, currHeading, sp || 0, acc || null);
         }
       },
       (error) => {
-        console.warn('[Courier Geolocation watchPosition Error]:', error.message);
-        setIsGpsActive(false);
+        console.warn('[Courier Geolocation watchPosition Warning]:', error.message);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 5000,
+        timeout: 15000,
+        maximumAge: 3000,
       }
     );
 
@@ -142,7 +193,7 @@ export function useCourierLocationTracker({
       navigator.geolocation.clearWatch(watchId);
       deactivateCourierLocationAction();
     };
-  }, [isActive, minDistanceMeters, minIntervalMs, syncLocationToBackend]);
+  }, [isActive, minDistanceMeters, minIntervalMs, syncLocationToBackend, requestCurrentLocation]);
 
   return {
     currentPosition,
@@ -150,6 +201,9 @@ export function useCourierLocationTracker({
     speed,
     accuracy,
     isGpsActive,
+    isLocating,
+    gpsError,
     lastSyncTime,
+    recenterGps: requestCurrentLocation,
   };
 }

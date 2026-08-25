@@ -21,6 +21,11 @@ import {
   ShieldCheck,
   Check,
   Loader2,
+  Compass,
+  Gauge,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,19 +93,29 @@ export function CourierTaskModal({
   const [isCashConfirmOpen, setIsCashConfirmOpen] = useState(false);
   const [cashConfirmedCheckbox, setCashConfirmedCheckbox] = useState(false);
   const [cashNotes, setCashNotes] = useState('');
+  const [isItemsExpanded, setIsItemsExpanded] = useState(false);
 
-  // Resolved dynamic coordinate Makassar for this customer
+  // Resolved dynamic coordinate Makassar for customer destination
   const customerCoords = getOrderCustomerCoords(order);
 
-  // Live High-Performance Battery-Friendly GPS Tracker (Syncs to public.courier_locations)
-  const isDeliveryActive = isOpen && !!order && order.order_status === 'dikirim';
-  const { currentPosition, isGpsActive, lastSyncTime } = useCourierLocationTracker({
+  // REAL LIVE GPS TRACKING: Tracks device's actual physical coordinates in real-time
+  const isDeliveryActive = isOpen && !!order;
+  const {
+    currentPosition,
+    speed,
+    accuracy,
+    isGpsActive,
+    isLocating,
+    gpsError,
+    recenterGps,
+  } = useCourierLocationTracker({
     orderId: order?.id,
     isActive: isDeliveryActive,
-    minDistanceMeters: 10, // 10 meters distance threshold
-    minIntervalMs: 10000,  // 10 seconds heartbeat interval
+    minDistanceMeters: 10, // 10 meters distance delta
+    minIntervalMs: 10000,  // 10 seconds heartbeat
   });
 
+  // Courier position uses real device GPS if available; otherwise defaults to start coordinate
   const courierPosition: [number, number] = currentPosition || [
     customerCoords[0] - 0.012,
     customerCoords[1] - 0.015,
@@ -124,7 +139,7 @@ export function CourierTaskModal({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, courierPosition[0], courierPosition[1]]);
+  }, [isOpen, courierPosition[0], courierPosition[1], customerCoords[0], customerCoords[1]]);
 
   if (!order || !isOpen) return null;
 
@@ -147,33 +162,34 @@ export function CourierTaskModal({
       ? roadRoute.durationMinutes
       : Math.max(3, Math.round((distanceKm / 35) * 60));
 
-  // Distance in meters for proximity check
   const distanceMeters = Math.round(distanceKm * 1000);
-  const isNearCustomer = distanceMeters <= 500; // within 500 meters
+  const isNearCustomer = distanceMeters <= 600;
 
   const markers: MapMarkerData[] = [
     {
-      id: 'courier-live',
+      id: 'courier-real-live',
       position: courierPosition,
       title: `Kurir: ${courierName}`,
-      description: isGpsActive ? 'Lokasi Anda saat ini (Live GPS)' : 'Lokasi Kurir',
+      description: isGpsActive
+        ? `📍 GPS Asli Perangkat Aktif (${courierPosition[0].toFixed(5)}, ${courierPosition[1].toFixed(5)})`
+        : 'Mencari sinyal GPS perangkat...',
       type: 'courier',
       phone: courierPhone,
-      badgeText: 'Lokasi Anda',
+      badgeText: isGpsActive ? 'Lokasi GPS Anda' : 'Armada Kurir',
     },
     {
       id: 'customer-dest',
       position: customerCoords,
-      title: order.customer_name,
+      title: `Tujuan: ${order.customer_name}`,
       description: order.shipping_address,
       type: 'farm',
       phone: order.customer_phone,
-      badgeText: 'Tujuan Antar',
+      badgeText: 'Titik Pengantaran',
     },
   ];
 
   const route: MapRouteData = {
-    id: 'courier-task-route',
+    id: 'courier-task-road-route',
     from: courierPosition,
     to: customerCoords,
     geometryPoints: roadRoute?.geometry,
@@ -192,7 +208,7 @@ export function CourierTaskModal({
         return;
       }
       toast.success('Pengantaran Dimulai!', {
-        description: 'Status pesanan telah berubah menjadi Dalam Pengantaran.',
+        description: 'Status pesanan berubah menjadi Sedang Diantar. Pelanggan dapat melacak posisi Anda.',
       });
       router.refresh();
     });
@@ -200,7 +216,7 @@ export function CourierTaskModal({
 
   // 2. Swipe to Finish Delivery
   const handleFinishDeliveryAttempt = () => {
-    // If cash order, open cash receipt confirmation dialog first
+    // If cash order and not yet paid, open Cash Confirmation modal
     if (isCashOrder && order.payment_status !== 'settlement' && order.payment_status !== 'paid') {
       setIsCashConfirmOpen(true);
       return;
@@ -224,7 +240,7 @@ export function CourierTaskModal({
       }
 
       toast.success('Tugas Pengantaran Sukses Selesai!', {
-        description: `Pesanan ${order.order_code} telah ditandai selesai. Terima kasih!`,
+        description: `Pesanan ${order.order_code} telah ditandai selesai. Terima kasih atas kerja keras Anda!`,
       });
 
       setIsCashConfirmOpen(false);
@@ -234,45 +250,57 @@ export function CourierTaskModal({
   };
 
   const cleanPhone = order.customer_phone.replace(/^0/, '62').replace(/\D/g, '');
+  const waMessage = encodeURIComponent(
+    `Halo Bpk/Ibu ${order.customer_name}, saya kurir dari Kentara sedang dalam perjalanan mengantarkan pesanan benih kentang Anda (${order.order_code}) ke lokasi ${order.shipping_address}. Mohon pastikan penerima berada di lokasi.`
+  );
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200">
-      {/* 1. Floating Top Navigation Bar */}
-      <div className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800">
-          <Badge className="bg-blue-600 text-white text-[10px] font-extrabold px-2 py-0.5">
+      {/* 1. Floating Top Navigation Bar (Driver Cockpit Header) */}
+      <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-2 max-w-lg mx-auto">
+        <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 flex-1 min-w-0">
+          <Badge className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 shrink-0">
             {order.order_code}
           </Badge>
-          <span className="text-xs font-bold text-zinc-900 dark:text-white truncate max-w-[140px] sm:max-w-[200px]">
-            {order.customer_name}
-          </span>
+          <div className="min-w-0 flex-1">
+            <span className="text-xs font-bold text-zinc-900 dark:text-white truncate block">
+              {order.customer_name}
+            </span>
+            <span className="text-[10px] text-zinc-500 truncate block">
+              {order.shipping_city || 'Makassar'}
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Quick WA & Call button */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Quick WA Button */}
           <a
-            href={`https://wa.me/${cleanPhone}`}
+            href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
             target="_blank"
             rel="noreferrer"
-            className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg hover:bg-emerald-700 transition"
-            title="Kirim WhatsApp"
+            className="h-10 w-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
+            title="Kirim WhatsApp ke Pembeli"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-4 w-4" />
           </a>
+
+          {/* Direct Phone Call Button */}
           <a
             href={`tel:${order.customer_phone}`}
-            className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg hover:bg-blue-700 transition"
+            className="h-10 w-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
             title="Telepon Pembeli"
           >
-            <Phone className="h-5 w-5" />
+            <Phone className="h-4 w-4" />
           </a>
+
+          {/* Close / Minimize Button */}
           <button
             type="button"
             onClick={onClose}
-            className="h-10 w-10 rounded-2xl bg-zinc-900/90 text-white flex items-center justify-center shadow-lg hover:bg-zinc-800 transition"
-            title="Tutup Peta"
+            className="h-10 w-10 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 text-white flex items-center justify-center shadow-lg transition active:scale-95 border border-zinc-700/50"
+            title="Tutup Navigasi"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -288,63 +316,160 @@ export function CourierTaskModal({
           className="w-full h-full"
         />
 
-        {/* Floating ETA & Distance Badge */}
-        <div className="absolute top-20 left-4 z-20 flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 px-3 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-xs">
-          <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 font-bold">
-            <Clock className="h-4 w-4" />
-            <span>{etaMinutes} mnt</span>
+        {/* Floating HUD Badges (ETA, Distance & Real GPS Signal) */}
+        <div className="absolute top-18 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 max-w-lg mx-auto pointer-events-none">
+          {/* ETA & Distance */}
+          <div className="flex items-center gap-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-3 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-xs pointer-events-auto">
+            <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 font-black">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{etaMinutes} mnt</span>
+            </div>
+            <span className="text-zinc-300 dark:text-zinc-700">|</span>
+            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold">
+              <Navigation className="h-3.5 w-3.5" />
+              <span>{distanceKm} km ({distanceMeters} m)</span>
+            </div>
           </div>
-          <span className="text-zinc-300">|</span>
-          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold">
-            <Navigation className="h-4 w-4" />
-            <span>{distanceKm} km ({distanceMeters} m)</span>
+
+          {/* Real GPS Status & Recenter Button */}
+          <div className="flex items-center gap-1.5 pointer-events-auto">
+            <div className="flex items-center gap-1.5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-2.5 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-[10px]">
+              {isGpsActive ? (
+                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                  <span>GPS Asli Aktif</span>
+                  {accuracy && <span className="text-zinc-400">(&plusmn;{accuracy}m)</span>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Cari GPS...</span>
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={recenterGps}
+              disabled={isLocating}
+              className="h-9 w-9 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800 shadow-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-zinc-800 cursor-pointer"
+              title="Pusatkan ke GPS Saya"
+            >
+              <Locate className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </div>
+
+        {/* GPS Error Alert if permission denied */}
+        {gpsError && (
+          <div className="absolute top-32 left-3 right-3 z-20 max-w-lg mx-auto">
+            <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/90 border border-amber-300 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-2 shadow-lg backdrop-blur-md">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                <span className="text-[11px] font-medium">{gpsError}</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={recenterGps}
+                className="h-6 text-[10px] px-2 rounded-lg"
+              >
+                Coba Lagi
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 3. Bottom Sliding Task Sheet & Swipe Controls */}
+      {/* 3. Bottom Sliding Task Sheet & Driver Action Controls */}
       <div className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 pb-6 space-y-3 z-30 shadow-2xl rounded-t-3xl max-w-lg mx-auto w-full">
-        {/* Address & Ordered Items preview */}
+        {/* Swipe Handle Indicator */}
+        <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto -mt-1" />
+
+        {/* Address & Payment Information */}
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
-                Alamat Pengantaran Lahan
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] uppercase font-black text-zinc-400 block tracking-wider">
+                Lokasi Pengantaran Lahan
               </span>
-              <p className="text-xs font-semibold text-zinc-900 dark:text-white leading-tight flex items-start gap-1 mt-0.5">
+              <p className="text-xs font-bold text-zinc-900 dark:text-white leading-tight flex items-start gap-1 mt-0.5">
                 <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                <span>{order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}</span>
+                <span className="line-clamp-2">{order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}</span>
               </p>
             </div>
 
             <div className="text-right shrink-0">
-              <span className="text-[10px] text-zinc-400 block font-medium">Tagihan Pembayaran</span>
-              <span className="text-sm font-black text-emerald-700 dark:text-emerald-400">
+              <span className="text-[10px] text-zinc-400 block font-medium">Total Tagihan</span>
+              <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
                 Rp {order.total_amount.toLocaleString('id-ID')}
               </span>
-              <Badge
-                className={`text-[9px] font-bold mt-0.5 ${
-                  isCashOrder
-                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
-                    : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
-                }`}
-              >
-                {isCashOrder ? '💵 Bayar Tunai (COD)' : '💳 Lunas Online'}
-              </Badge>
             </div>
           </div>
 
-          {/* Items Breakdown list */}
-          <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-[11px] space-y-1">
-            <span className="text-zinc-400 font-semibold block text-[10px] uppercase">
-              Daftar Benih ({order.items?.length || 0} varietas):
-            </span>
-            {order.items?.map((item, idx) => (
-              <div key={idx} className="flex justify-between font-medium text-zinc-800 dark:text-zinc-200">
-                <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
-                <span>Rp {item.subtotal.toLocaleString('id-ID')}</span>
+          {/* Payment Method Notice Badge */}
+          <div
+            className={`p-2.5 rounded-2xl flex items-center justify-between border ${
+              isCashOrder
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className={`p-1.5 rounded-xl ${
+                  isCashOrder ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
+                }`}
+              >
+                {isCashOrder ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
               </div>
-            ))}
+              <div>
+                <span
+                  className={`text-xs font-black block ${
+                    isCashOrder
+                      ? 'text-amber-900 dark:text-amber-200'
+                      : 'text-emerald-900 dark:text-emerald-200'
+                  }`}
+                >
+                  {isCashOrder ? '💵 Bayar Tunai di Tempat (COD)' : '💳 Lunas Online (Midtrans)'}
+                </span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
+                  {isCashOrder
+                    ? `Wajib tagih uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli`
+                    : 'Pesanan telah dibayar. Jangan menagih uang kepada pembeli.'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Expandable Ordered Seed Items */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => setIsItemsExpanded(!isItemsExpanded)}
+              className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition"
+            >
+              <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
+                <Package className="h-3.5 w-3.5 text-blue-600" />
+                <span>Rincian Muatan ({order.items?.length || 0} varietas benih)</span>
+              </span>
+              {isItemsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {isItemsExpanded && (
+              <div className="p-3 pt-0 border-t border-zinc-200/60 dark:border-zinc-800 space-y-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
+                {order.items?.map((item, idx) => (
+                  <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
+                    <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      Rp {item.subtotal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -356,7 +481,7 @@ export function CourierTaskModal({
               <span>Pengantaran ini telah selesai diserahkan.</span>
             </div>
           ) : !isStarted ? (
-            /* STEP 1: Swipe to Start */
+            /* STEP 1: Swipe to Start Delivery */
             <SwipeButton
               text="Geser untuk Mulai Pengantaran ➔"
               variant="primary"
@@ -364,18 +489,18 @@ export function CourierTaskModal({
               onSwipeComplete={handleStartDelivery}
             />
           ) : (
-            /* STEP 2: Swipe to Finish */
+            /* STEP 2: Swipe to Complete Delivery */
             <div className="space-y-1.5">
               {!isNearCustomer && (
                 <p className="text-[10px] text-amber-600 dark:text-amber-400 text-center font-medium flex items-center justify-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  <span>Jarak ke pembeli: {distanceKm} km. Disarankan geser saat tiba di lokasi.</span>
+                  <span>Jarak ke pembeli: {distanceKm} km. Disarankan geser saat tiba di lokasi lahan.</span>
                 </p>
               )}
               <SwipeButton
                 text={
                   isCashOrder
-                    ? 'Geser untuk Terima Uang & Selesai ➔'
+                    ? 'Geser untuk Terima Kas COD & Selesai ➔'
                     : 'Geser untuk Selesaikan Pengantaran ➔'
                 }
                 variant="success"
@@ -391,14 +516,14 @@ export function CourierTaskModal({
       <Dialog open={isCashConfirmOpen} onOpenChange={setIsCashConfirmOpen}>
         <DialogContent className="max-w-md rounded-3xl p-6">
           <DialogHeader>
-            <div className="h-14 w-14 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 flex items-center justify-center mb-2 mx-auto">
+            <div className="h-14 w-14 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 flex items-center justify-center mb-2 mx-auto shadow-xs">
               <Banknote className="h-8 w-8" />
             </div>
             <DialogTitle className="text-lg font-black text-center text-zinc-900 dark:text-white">
               Konfirmasi Penerimaan Uang Tunai (COD)
             </DialogTitle>
             <DialogDescription className="text-xs text-center text-zinc-500">
-              Pelanggan memilih metode <strong>Bayar Tunai di Tempat (COD)</strong>. Mohon pastikan uang tunai telah Anda terima sebelum menyelesaikan tugas.
+              Pelanggan memilih metode <strong>Bayar Tunai di Tempat (COD)</strong>. Pastikan uang tunai pas telah Anda terima sebelum menyelesaikan tugas.
             </DialogDescription>
           </DialogHeader>
 
@@ -414,12 +539,12 @@ export function CourierTaskModal({
             </div>
 
             {/* Checkbox confirmation */}
-            <label className="flex items-start gap-3 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900">
+            <label className="flex items-start gap-3 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
               <input
                 type="checkbox"
                 checked={cashConfirmedCheckbox}
                 onChange={(e) => setCashConfirmedCheckbox(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded-md text-emerald-600 focus:ring-emerald-500"
+                className="mt-0.5 h-4 w-4 rounded-md text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
               <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 leading-snug">
                 Saya mengonfirmasi telah menerima uang tunai pas sebesar{' '}
@@ -437,8 +562,8 @@ export function CourierTaskModal({
                 rows={2}
                 value={cashNotes}
                 onChange={(e) => setCashNotes(e.target.value)}
-                placeholder="Contoh: Diterima uang pas Rp 1.425.000 oleh istri pembeli..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                placeholder="Contoh: Diterima uang pas Rp 1.285.000 oleh Bpk. Daeng Sikki di lokasi..."
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
               />
             </div>
           </div>
@@ -456,7 +581,7 @@ export function CourierTaskModal({
               type="button"
               disabled={!cashConfirmedCheckbox || isPending}
               onClick={() => executeCompleteDelivery(true, cashNotes)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-md"
             >
               {isPending ? (
                 <>

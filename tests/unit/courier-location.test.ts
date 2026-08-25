@@ -135,4 +135,30 @@ describe('6. Courier Live Location & GPS Tracking Unit Tests (Pelacakan Lokasi K
     expect(deactivated.is_active).toBe(false);
     expect(deactivated.order_id).toBeNull();
   });
+
+  it('should compute distance & proximity accurately between real courier GPS and customer farm', () => {
+    const realCourierGps: [number, number] = [-5.1401, 119.4412]; // Current device GPS
+    const customerDestination: [number, number] = [-5.1385, 119.4912]; // Tamalanrea Makassar
+
+    const distMeters = calculateDistanceMeters(
+      realCourierGps[0],
+      realCourierGps[1],
+      customerDestination[0],
+      customerDestination[1]
+    );
+
+    const distKm = distMeters / 1000;
+    expect(distKm).toBeGreaterThan(5); // ~5.5 km
+    expect(distKm).toBeLessThan(7);
+
+    // If within 500m
+    const nearCourierGps: [number, number] = [-5.1386, 119.4915];
+    const nearDistance = calculateDistanceMeters(
+      nearCourierGps[0],
+      nearCourierGps[1],
+      customerDestination[0],
+      customerDestination[1]
+    );
+    expect(nearDistance).toBeLessThan(500);
+  });
 });
