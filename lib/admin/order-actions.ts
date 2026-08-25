@@ -24,17 +24,21 @@ async function verifyAdminRole() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    throw new Error('Autentikasi diperlukan. Silakan login kembali.');
+    throw new Error('Autentikasi diperlukan. Silakan login kembali sebagai Administrator.');
   }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile || profile.role !== 'admin') {
-    throw new Error('Akses ditolak. Tindakan ini hanya untuk administrator.');
+  const userRole = profile?.role || user.user_metadata?.role;
+
+  if (userRole !== 'admin') {
+    throw new Error(
+      `Akses ditolak. Anda saat ini login sebagai role "${userRole || 'pengguna'}". Silakan login menggunakan akun Admin (admin@kentara.com).`
+    );
   }
 
   return { supabase, user };
@@ -481,7 +485,41 @@ export async function assignCourierToOrderAction(
       return { success: false, error: 'Silakan pilih mitra kurir.' };
     }
 
-    // Verify courier exists
+    // 1. Try RPC execution first
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('admin_assign_courier', {
+      p_order_id: orderId,
+      p_courier_id: courierId,
+    });
+
+    if (!rpcErr && rpcRes && rpcRes.success) {
+      // Send notification
+      try {
+        await sendNotificationAction({
+          title: '🚚 Tugas Pengantaran Benih Baru!',
+          message: `Anda ditugaskan mengantar pesanan ${rpcRes.order_code || ''} ke ${rpcRes.customer_name || 'Pembeli'}.`,
+          type: 'courier_task',
+          recipient_role: 'kurir',
+          user_id: courierId,
+          order_id: orderId,
+          data: {
+            order_code: rpcRes.order_code,
+            customer_name: rpcRes.customer_name,
+            url: '/kurir',
+          },
+        });
+      } catch (notifErr) {
+        console.warn('[Notification dispatch warning]:', notifErr);
+      }
+
+      revalidatePath('/admin');
+      revalidatePath('/admin/orders');
+      revalidatePath('/kurir');
+      revalidatePath('/petani');
+
+      return { success: true };
+    }
+
+    // 2. Direct query fallback
     const { data: courierProfile, error: courierErr } = await supabase
       .from('profiles')
       .select('id, full_name, role')
