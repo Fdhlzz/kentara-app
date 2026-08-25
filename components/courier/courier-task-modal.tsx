@@ -25,6 +25,8 @@ import {
   ChevronUp,
   Lock,
   Sparkles,
+  ArrowRight,
+  PartyPopper,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -91,13 +93,44 @@ export function CourierTaskModal({
   const [currentOrderStatus, setCurrentOrderStatus] = useState<string>(order?.order_status || 'diproses');
   const [isSimulatedArrival, setIsSimulatedArrival] = useState(false);
 
+  // Success Celebration & Redirect Modal
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
   // Sync state when order prop changes
   useEffect(() => {
     if (order) {
       setCurrentOrderStatus(order.order_status);
       setIsSimulatedArrival(false);
+      setIsSuccessModalOpen(false);
     }
   }, [order?.id, order?.order_status]);
+
+  // Automatic countdown redirect to main pages when success modal is open
+  useEffect(() => {
+    if (!isSuccessModalOpen) return;
+
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleRedirectToMainDashboard();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isSuccessModalOpen]);
+
+  const handleRedirectToMainDashboard = () => {
+    setIsSuccessModalOpen(false);
+    onClose();
+    router.push('/kurir');
+    router.refresh();
+  };
 
   // Cash Confirmation Modal state
   const [isCashConfirmOpen, setIsCashConfirmOpen] = useState(false);
@@ -260,13 +293,10 @@ export function CourierTaskModal({
       }
 
       setCurrentOrderStatus('selesai');
-      toast.success('Tugas Pengantaran Sukses Selesai!', {
-        description: `Pesanan ${order.order_code} telah ditandai selesai. Terima kasih atas kerja keras Anda!`,
-      });
-
       setIsCashConfirmOpen(false);
-      onClose();
-      router.refresh();
+      
+      // Open Success Completion Pop-up Modal
+      setIsSuccessModalOpen(true);
     });
   };
 
@@ -647,6 +677,81 @@ export function CourierTaskModal({
                   <span>Konfirmasi &amp; Selesaikan Tugas</span>
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 6. EYE-CATCHING TASK COMPLETION CELEBRATION MODAL & AUTOMATIC DASHBOARD REDIRECT */}
+      <Dialog open={isSuccessModalOpen} onOpenChange={(open) => {
+        if (!open) handleRedirectToMainDashboard();
+      }}>
+        <DialogContent className="max-w-md rounded-3xl p-6 border-2 border-emerald-500/30 text-center space-y-4">
+          <DialogHeader className="text-center">
+            {/* Animated Celebration Badge */}
+            <div className="relative mx-auto mb-2">
+              <div className="h-20 w-20 rounded-3xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 flex items-center justify-center mx-auto shadow-xl ring-8 ring-emerald-500/20 animate-bounce">
+                <PartyPopper className="h-10 w-10 text-emerald-600" />
+              </div>
+            </div>
+
+            <DialogTitle className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+              Tugas Pengantaran Berhasil Selesai! 🎉
+            </DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500 max-w-xs mx-auto">
+              Pesanan benih telah sukses diserahkan ke pembeli dan data sistem telah disinkronkan.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Delivery Summary Box */}
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800 text-left space-y-2.5 text-xs">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-800">
+              <span className="text-zinc-500 font-medium">Kode Pesanan:</span>
+              <Badge className="bg-blue-600 text-white text-[10px] font-black font-mono">
+                {order.order_code}
+              </Badge>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-500">Penerima Lahan:</span>
+              <span className="font-bold text-zinc-900 dark:text-white">{order.customer_name}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-500">Status Pembayaran:</span>
+              <Badge
+                className={`text-[10px] font-bold ${
+                  isCashOrder
+                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
+                    : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                }`}
+              >
+                {isCashOrder ? '💵 Kas COD Diterima' : '💳 Lunas Online Gateway'}
+              </Badge>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800 font-extrabold text-emerald-700 dark:text-emerald-400">
+              <span>Total Nilai Pesanan:</span>
+              <span className="text-sm font-black">
+                Rp {order.total_amount.toLocaleString('id-ID')}
+              </span>
+            </div>
+          </div>
+
+          {/* Countdown Redirect Indicator */}
+          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <span>Otomatis kembali ke Beranda dalam <strong>{countdown} detik...</strong></span>
+          </div>
+
+          {/* Action Button */}
+          <DialogFooter>
+            <Button
+              onClick={handleRedirectToMainDashboard}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl h-12 font-extrabold text-xs sm:text-sm shadow-lg gap-2 cursor-pointer"
+            >
+              <span>Kembali ke Beranda Tugas</span>
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>

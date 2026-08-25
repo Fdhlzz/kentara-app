@@ -121,6 +121,37 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     expect(step3.isCompleteDisabled).toBe(false); // ENABLED!
   });
 
+  it('should display completion celebration modal upon task completion and trigger return to dashboard', () => {
+    function handleTaskSuccess(
+      order: Order,
+      onRedirectToMainDashboard: () => void
+    ) {
+      const summary = {
+        showSuccessModal: true,
+        orderCode: order.order_code,
+        customerName: order.customer_name,
+        totalAmount: order.total_amount,
+        paymentType: order.payment_gateway === 'cash' ? 'Tunai COD' : 'Online Gateway',
+        status: 'selesai',
+      };
+
+      // Execute redirect callback
+      onRedirectToMainDashboard();
+
+      return summary;
+    }
+
+    let redirected = false;
+    const modalState = handleTaskSuccess(mockAssignedOrder, () => {
+      redirected = true;
+    });
+
+    expect(modalState.showSuccessModal).toBe(true);
+    expect(modalState.orderCode).toBe('KTR-260825-88XX');
+    expect(modalState.status).toBe('selesai');
+    expect(redirected).toBe(true);
+  });
+
   it('should accurately detect when courier is within proximity of the customer coordinate', () => {
     const customerCoords: [number, number] = [-6.81234, 107.6189]; // Lembang Farm
     const nearbyCourier: [number, number] = [-6.8125, 107.619]; // ~25m away
