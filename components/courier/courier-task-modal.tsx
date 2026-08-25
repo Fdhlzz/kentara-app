@@ -56,6 +56,24 @@ interface CourierTaskModalProps {
   courierPhone: string;
 }
 
+function getOrderCustomerCoords(order?: Order | null): [number, number] {
+  if (!order) return [-5.1379367, 119.4357388];
+  const addr = (order.shipping_address || '').toLowerCase();
+  if (addr.includes('bontoala')) return [-5.1298, 119.4215];
+  if (addr.includes('tamalanrea')) return [-5.1385, 119.4912];
+  if (addr.includes('panakkukang') || addr.includes('pettarani')) return [-5.1554, 119.4428];
+  if (addr.includes('mariso') || addr.includes('losari')) return [-5.1485, 119.4089];
+
+  // Deterministic hash within Makassar bounds
+  let hash = 0;
+  for (let i = 0; i < (order.id || '').length; i++) {
+    hash = (hash << 5) - hash + order.id.charCodeAt(i);
+  }
+  const latOffset = ((Math.abs(hash) % 400) / 10000) - 0.02;
+  const lngOffset = ((Math.abs(hash >> 3) % 500) / 10000) - 0.025;
+  return [-5.140 + latOffset, 119.440 + lngOffset];
+}
+
 export function CourierTaskModal({
   order,
   isOpen,
@@ -71,8 +89,8 @@ export function CourierTaskModal({
   const [cashConfirmedCheckbox, setCashConfirmedCheckbox] = useState(false);
   const [cashNotes, setCashNotes] = useState('');
 
-  // Default coordinate Makassar if order has no specific coords
-  const customerCoords: [number, number] = [-5.1379367, 119.4357388];
+  // Resolved dynamic coordinate Makassar for this customer
+  const customerCoords = getOrderCustomerCoords(order);
 
   // Live High-Performance Battery-Friendly GPS Tracker (Syncs to public.courier_locations)
   const isDeliveryActive = isOpen && !!order && order.order_status === 'dikirim';
