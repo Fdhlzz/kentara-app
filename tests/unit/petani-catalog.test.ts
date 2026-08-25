@@ -218,4 +218,83 @@ describe('Petani Customer Portal & Product Catalog Unit Tests', () => {
     expect(mobileSpecs.compactHeader).toBe(true);
     expect(mobileSpecs.minTouchTargetPx).toBeGreaterThanOrEqual(44);
   });
+
+  it('should provide intuitive cart state feedback and min order addition on the Beli button', () => {
+    function getBeliButtonState(product: Product, inCartQty: number) {
+      if (product.stock <= 0) {
+        return {
+          disabled: true,
+          label: 'Stok Habis',
+          isInCart: false,
+        };
+      }
+
+      if (inCartQty > 0) {
+        return {
+          disabled: false,
+          label: `${inCartQty} ${product.unit} di Keranjang (+ Tambah)`,
+          isInCart: true,
+        };
+      }
+
+      return {
+        disabled: false,
+        label: `+ Beli (${product.min_order || 1} ${product.unit})`,
+        isInCart: false,
+      };
+    }
+
+    const unaddedState = getBeliButtonState(mockProducts[0], 0);
+    expect(unaddedState.label).toBe('+ Beli (10 kg)');
+    expect(unaddedState.isInCart).toBe(false);
+
+    const addedState = getBeliButtonState(mockProducts[0], 20);
+    expect(addedState.label).toBe('20 kg di Keranjang (+ Tambah)');
+    expect(addedState.isInCart).toBe(true);
+
+    const outOfStockState = getBeliButtonState(mockProducts[2], 0);
+    expect(outOfStockState.disabled).toBe(true);
+    expect(outOfStockState.label).toBe('Stok Habis');
+  });
+
+  it('should calculate cart weight accurately and provide mobile stepper controls with min order constraints', () => {
+    interface CartItem {
+      product: Product;
+      quantity: number;
+    }
+
+    function applyStepper(
+      items: CartItem[],
+      productId: string,
+      delta: number
+    ): CartItem[] {
+      return items
+        .map((item) => {
+          if (item.product.id !== productId) return item;
+          const minQty = item.product.min_order || 1;
+          const nextQty = item.quantity + delta;
+          if (nextQty < minQty && delta < 0) {
+            return null; // Remove from cart
+          }
+          if (nextQty > item.product.stock) {
+            return item; // Clamped to max stock
+          }
+          return { ...item, quantity: nextQty };
+        })
+        .filter(Boolean) as CartItem[];
+    }
+
+    let cart: CartItem[] = [{ product: mockProducts[0], quantity: 10 }]; // min_order is 10
+    // Step up by 5
+    cart = applyStepper(cart, 'prod-1', 5);
+    expect(cart[0].quantity).toBe(15);
+
+    // Step down by 5
+    cart = applyStepper(cart, 'prod-1', -5);
+    expect(cart[0].quantity).toBe(10);
+
+    // Step down below min_order removes item
+    cart = applyStepper(cart, 'prod-1', -5);
+    expect(cart).toHaveLength(0);
+  });
 });

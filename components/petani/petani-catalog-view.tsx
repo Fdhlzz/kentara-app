@@ -20,7 +20,8 @@ import {
   Layers,
   Award,
   Leaf,
-  Eye,
+  Check,
+  X,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -184,8 +185,12 @@ export function PetaniCatalogView({
       return [...prev, { product, quantity: Math.min(product.stock, defaultQty) }];
     });
 
-    toast.success(`${product.name} ditambahkan ke keranjang`, {
-      description: `Jumlah: ${defaultQty} ${product.unit}`,
+    toast.success(`${product.name} dimasukkan ke keranjang`, {
+      description: `+${defaultQty} ${product.unit} berhasil ditambahkan.`,
+      action: {
+        label: 'Lihat Keranjang',
+        onClick: () => setIsCartDrawerOpen(true),
+      },
     });
   };
 
@@ -330,7 +335,7 @@ export function PetaniCatalogView({
 
   return (
     <div className="space-y-3 sm:space-y-5">
-      {/* 1. REAL VARIETY & SEED CLASS HORIZONTAL FILTER BAR */}
+      {/* 1. VARIETY & SEED CLASS HORIZONTAL FILTER BAR */}
       <section className="bg-white dark:bg-zinc-900 p-2.5 sm:p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2">
         {/* Real Varieties Scroll */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none px-0.5">
@@ -392,7 +397,7 @@ export function PetaniCatalogView({
         </div>
       </section>
 
-      {/* 2. REAL PRODUCT CARDS GRID (2-COL MOBILE / 4-COL DESKTOP) */}
+      {/* 2. FULL-BLEED IMAGE PRODUCT CARDS GRID (MOBILE-FIRST) */}
       <section className="space-y-3">
         {filteredProducts.length === 0 ? (
           <Card className="p-8 text-center rounded-2xl border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 space-y-2">
@@ -421,16 +426,18 @@ export function PetaniCatalogView({
             {filteredProducts.map((product) => {
               const isOutOfStock = product.stock <= 0;
               const isReadyToPlant = product.sprout_status === 'siap_tanam';
+              const inCartItem = cart.find((item) => item.product.id === product.id);
+              const inCartQty = inCartItem ? inCartItem.quantity : 0;
 
               return (
-                <Card
+                <div
                   key={product.id}
-                  className="flex flex-col rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-xs overflow-hidden group select-none hover:border-emerald-500/50 hover:shadow-md transition"
+                  className="flex flex-col rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xs hover:shadow-lg hover:border-emerald-500/50 transition-all duration-200 overflow-hidden group select-none"
                 >
-                  {/* Square Aspect 1:1 Image with Safe Fallback */}
+                  {/* FULL-BLEED TOP IMAGE CONTAINER */}
                   <Link
                     href={`/petani/products/${product.slug || product.id}`}
-                    className="relative aspect-square w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden block"
+                    className="relative aspect-[4/3] sm:aspect-square w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden block"
                   >
                     <ProductImage
                       src={product.image_url}
@@ -440,98 +447,106 @@ export function PetaniCatalogView({
                     />
 
                     {/* Official Badges Overlay */}
-                    <div className="absolute top-1.5 left-1.5 flex flex-col gap-0.5 items-start">
+                    <div className="absolute top-2 left-2 flex flex-col gap-1 items-start pointer-events-none">
                       {product.cert_number ? (
-                        <Badge className="bg-emerald-600 text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0 border-none shadow-xs">
+                        <Badge className="bg-emerald-600/90 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 border-none shadow-sm">
                           ✓ BPSB RESMI
                         </Badge>
                       ) : (
-                        <Badge className="bg-zinc-800 text-white text-[7px] sm:text-[8px] font-bold px-1.5 py-0 border-none">
+                        <Badge className="bg-zinc-900/80 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border-none">
                           TERUJI
                         </Badge>
                       )}
-                      <Badge className="bg-blue-600 text-white text-[7px] sm:text-[8px] font-bold px-1.5 py-0 border-none">
-                        G{product.seed_class.replace('G', '')}
+                      <Badge className="bg-blue-600/90 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border-none shadow-sm">
+                        Kelas G{product.seed_class.replace('G', '')}
                       </Badge>
                     </div>
 
-                    <div className="absolute top-1.5 right-1.5">
+                    <div className="absolute top-2 right-2 pointer-events-none">
                       <Badge
-                        className={`text-[7px] sm:text-[8px] font-black px-1.5 py-0 border-none shadow-xs ${
+                        className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 border-none shadow-sm ${
                           isReadyToPlant
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-emerald-500/90 text-white'
                             : product.sprout_status === 'pecah_dormansi'
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-zinc-700 text-white'
+                            ? 'bg-amber-500/90 text-white'
+                            : 'bg-zinc-800/90 text-white'
                         }`}
                       >
-                        {isReadyToPlant ? '🌱 Siap' : product.sprout_status === 'pecah_dormansi' ? '✨ Pecah' : '💤 Dorm'}
+                        {isReadyToPlant ? '🌱 Siap Tanam' : product.sprout_status === 'pecah_dormansi' ? '✨ Pecah' : '💤 Dormansi'}
                       </Badge>
                     </div>
                   </Link>
 
                   {/* Body Content */}
-                  <div className="p-2.5 sm:p-3.5 flex-1 flex flex-col justify-between space-y-1.5">
-                    <div className="space-y-0.5">
+                  <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2.5">
+                    <Link
+                      href={`/petani/products/${product.slug || product.id}`}
+                      className="space-y-1 block group-hover:text-emerald-600 transition"
+                    >
                       {/* Origin */}
-                      <div className="flex items-center gap-0.5 text-[9px] text-zinc-400 font-semibold truncate">
-                        <MapPin className="h-2.5 w-2.5 text-rose-500 shrink-0" />
+                      <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-semibold truncate">
+                        <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
                         <span className="truncate">{product.origin_location}</span>
                       </div>
 
                       {/* Product Name */}
-                      <Link
-                        href={`/petani/products/${product.slug || product.id}`}
-                        className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white line-clamp-2 leading-snug hover:text-emerald-600 transition block"
-                      >
+                      <h3 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white line-clamp-2 leading-snug">
                         {product.name}
-                      </Link>
+                      </h3>
 
                       {/* Real Price Display */}
-                      <div className="pt-0.5 flex items-baseline gap-0.5">
-                        <span className="text-xs sm:text-base font-black text-emerald-700 dark:text-emerald-400">
+                      <div className="pt-0.5 flex items-baseline gap-1">
+                        <span className="text-sm sm:text-base font-black text-emerald-700 dark:text-emerald-400">
                           Rp {product.price.toLocaleString('id-ID')}
                         </span>
-                        <span className="text-[9px] text-zinc-400 font-medium">
+                        <span className="text-[10px] text-zinc-400 font-medium">
                           /{product.unit}
                         </span>
                       </div>
 
-                      {/* Stock & Min Order */}
-                      <div className="flex items-center justify-between text-[9px] text-zinc-400 pt-0.5">
+                      {/* Real Stock & Min Order Info */}
+                      <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-0.5">
                         <span>Min. {product.min_order} {product.unit}</span>
                         <span className={isOutOfStock ? 'text-rose-500 font-bold' : 'text-zinc-500 font-semibold'}>
-                          {isOutOfStock ? 'Stok Habis' : `Stok: ${product.stock} ${product.unit}`}
+                          {isOutOfStock ? 'Stok Habis' : `Tersedia ${product.stock} ${product.unit}`}
                         </span>
                       </div>
-                    </div>
+                    </Link>
 
-                    {/* Action Buttons */}
-                    <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800 grid grid-cols-2 gap-1">
-                      <Link
-                        href={`/petani/products/${product.slug || product.id}`}
-                        className="inline-flex items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-700 text-[10px] font-bold h-8 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        <span>Detail</span>
-                      </Link>
-
+                    {/* IMPROVED HIGH-UX FULL-WIDTH BELI BUTTON */}
+                    <div className="pt-1">
                       <Button
                         disabled={isOutOfStock}
-                        onClick={() => addToCart(product, product.min_order || 1)}
-                        size="sm"
-                        className={`w-full rounded-xl text-[10px] font-black h-8 px-1 shadow-xs cursor-pointer ${
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(product, product.min_order || 1);
+                        }}
+                        className={`w-full rounded-xl sm:rounded-2xl text-xs font-black h-10 sm:h-11 shadow-sm cursor-pointer transition active:scale-[0.98] flex items-center justify-center gap-1.5 ${
                           isOutOfStock
                             ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+                            : inCartQty > 0
+                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white ring-2 ring-emerald-600/30'
                             : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                         }`}
                       >
-                        <Plus className="h-3 w-3" />
-                        <span>{isOutOfStock ? 'Habis' : '+ Beli'}</span>
+                        {isOutOfStock ? (
+                          <span>Stok Habis</span>
+                        ) : inCartQty > 0 ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            <span>{inCartQty} {product.unit} di Keranjang (+ Tambah)</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBag className="h-4 w-4" />
+                            <span>+ Beli ({product.min_order || 1} {product.unit})</span>
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
@@ -543,17 +558,17 @@ export function PetaniCatalogView({
         <div className="fixed bottom-3 left-3 right-3 z-40 max-w-lg mx-auto animate-in slide-in-from-bottom-2">
           <div
             onClick={() => setIsCartDrawerOpen(true)}
-            className="p-3 rounded-2xl bg-zinc-900 dark:bg-zinc-800 text-white shadow-2xl border border-zinc-700 flex items-center justify-between gap-2.5 cursor-pointer active:scale-98 transition"
+            className="p-3 sm:p-3.5 rounded-2xl bg-zinc-900/95 dark:bg-zinc-800/95 backdrop-blur-md text-white shadow-2xl border border-zinc-700 flex items-center justify-between gap-3 cursor-pointer active:scale-98 transition"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="h-8 w-8 rounded-xl bg-emerald-600 flex items-center justify-center font-black text-xs shrink-0">
-                <ShoppingBag className="h-4 w-4" />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-600 flex items-center justify-center font-black text-sm shrink-0 shadow-md">
+                <ShoppingBag className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <span className="text-xs font-black block truncate">
                   {cart.length} Varietas Benih ({cartTotalWeightKg} kg)
                 </span>
-                <span className="text-[10px] text-emerald-400 font-extrabold block truncate">
+                <span className="text-xs text-emerald-400 font-black block truncate">
                   Subtotal: Rp {cartSubtotal.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -566,7 +581,7 @@ export function PetaniCatalogView({
                 e.stopPropagation();
                 setIsCartDrawerOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl h-8 px-3 gap-1 shrink-0 shadow-xs cursor-pointer"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl h-9 px-3.5 gap-1 shrink-0 shadow-md cursor-pointer"
             >
               <span>Keranjang</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -575,148 +590,187 @@ export function PetaniCatalogView({
         </div>
       )}
 
-      {/* 4. REDESIGNED SHOPPING CART DRAWER */}
+      {/* 4. REDESIGNED ULTRA MOBILE-FRIENDLY SHOPPING CART BOTTOM SHEET */}
       <Dialog open={isCartDrawerOpen} onOpenChange={setIsCartDrawerOpen}>
-        <DialogContent className="max-w-md rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-base font-black text-zinc-900 dark:text-white flex items-center gap-1.5">
-                <ShoppingBag className="h-4 w-4 text-emerald-600" />
-                <span>Keranjang Belanja Benih</span>
-              </DialogTitle>
-              {cart.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCart([]);
-                    toast.info('Keranjang telah dikosongkan.');
-                  }}
-                  className="text-[10px] text-rose-500 hover:underline font-bold"
-                >
-                  Kosongkan
-                </button>
-              )}
-            </div>
-            <DialogDescription className="text-xs text-zinc-500">
-              Periksa daftar varietas dan sesuaikan kuantitas sebelum melakukan pemesanan.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-0 max-h-[92vh] flex flex-col overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl">
+          {/* Top Drag Handle for Mobile */}
+          <div className="pt-2.5 pb-1 sm:hidden">
+            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto" />
+          </div>
 
+          {/* Cart Header */}
+          <div className="px-4 sm:px-6 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-zinc-900 dark:text-white leading-none">
+                  Keranjang Belanja Benih
+                </h3>
+                <span className="text-[10px] text-zinc-400 font-bold block mt-0.5">
+                  {cart.length} Varietas Benih ({cartTotalWeightKg} kg)
+                </span>
+              </div>
+            </div>
+
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCart([]);
+                  toast.info('Keranjang belanja telah dikosongkan.');
+                }}
+                className="text-xs font-bold text-rose-500 hover:text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+              >
+                Kosongkan
+              </button>
+            )}
+          </div>
+
+          {/* Cart Items List */}
           {cart.length === 0 ? (
-            <div className="p-6 text-center space-y-2">
-              <ShoppingBag className="h-10 w-10 text-zinc-300 dark:text-zinc-700 mx-auto" />
-              <p className="text-xs font-bold text-zinc-500">Keranjang belanja Anda masih kosong</p>
+            <div className="p-8 sm:p-12 text-center space-y-3 my-auto">
+              <div className="h-16 w-16 rounded-3xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
+                <ShoppingBag className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  Keranjang Belanja Anda Masih Kosong
+                </h4>
+                <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                  Pilih benih kentang unggul bersertifikat dari katalog kami untuk memulai pemesanan.
+                </p>
+              </div>
               <Button
                 onClick={() => setIsCartDrawerOpen(false)}
-                size="sm"
-                variant="outline"
-                className="rounded-xl text-xs"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black h-10 px-5 shadow-sm"
               >
                 Pilih Benih Sekarang
               </Button>
             </div>
           ) : (
-            <div className="space-y-3 my-1">
-              {/* Item List */}
-              <div className="space-y-2 divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[40vh] overflow-y-auto pr-1">
-                {cart.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="pt-2.5 first:pt-0 flex items-center justify-between gap-2.5 text-xs"
-                  >
-                    <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0">
-                      <ProductImage
-                        src={item.product.image_url}
-                        alt={item.product.name}
-                        variety={item.product.variety}
-                        seedClass={item.product.seed_class}
-                      />
-                    </div>
+            <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3">
+              {cart.map((item) => (
+                <div
+                  key={item.product.id}
+                  className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/80 flex items-start gap-3 shadow-2xs"
+                >
+                  {/* Large Product Thumbnail */}
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-700">
+                    <ProductImage
+                      src={item.product.image_url}
+                      alt={item.product.name}
+                      variety={item.product.variety}
+                      seedClass={item.product.seed_class}
+                    />
+                  </div>
 
-                    <div className="min-w-0 flex-1">
-                      <span className="font-black text-zinc-900 dark:text-white block truncate text-xs">
-                        {item.product.name}
-                      </span>
-                      <div className="flex items-center gap-1 text-[10px] text-zinc-400">
-                        <span>Rp {item.product.price.toLocaleString('id-ID')} / {item.product.unit}</span>
-                        <span>•</span>
-                        <span>Kelas {item.product.seed_class}</span>
+                  {/* Product Details & Subtotal */}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0 border-none">
+                          Kelas {item.product.seed_class}
+                        </Badge>
+                        <span className="text-[10px] text-zinc-400 truncate">
+                          {item.product.origin_location}
+                        </span>
                       </div>
-                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-extrabold block">
-                        Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
+                      <h4 className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm line-clamp-2 leading-tight mt-0.5">
+                        {item.product.name}
+                      </h4>
+                      <span className="text-[10px] text-zinc-500 block">
+                        Rp {item.product.price.toLocaleString('id-ID')} / {item.product.unit} (Min. {item.product.min_order} {item.product.unit})
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div className="flex items-center gap-0.5 border border-zinc-200 dark:border-zinc-700 rounded-lg p-0.5">
+                    {/* Stepper Controls & Subtotal Row */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-200/60 dark:border-zinc-700/60">
+                      {/* Big Ergonomic Stepper */}
+                      <div className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 p-0.5 shadow-2xs">
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.product.id, -5)}
-                          className="p-1 text-zinc-500 hover:text-zinc-900"
+                          className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 active:scale-90 transition cursor-pointer"
+                          aria-label="Kurangi Jumlah"
                         >
-                          <Minus className="h-2.5 w-2.5" />
+                          <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="text-xs font-black px-1 min-w-[20px] text-center">
-                          {item.quantity}
+                        <span className="text-xs font-black px-2 min-w-[28px] text-center text-zinc-900 dark:text-white">
+                          {item.quantity} {item.product.unit}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.product.id, 5)}
-                          className="p-1 text-zinc-500 hover:text-zinc-900"
+                          className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 active:scale-90 transition cursor-pointer"
+                          aria-label="Tambah Jumlah"
                         >
-                          <Plus className="h-2.5 w-2.5" />
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.product.id)}
-                        className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {/* Subtotal & Trash */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400">
+                          Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
+                          title="Hapus Item"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-              {/* Real Summary Breakdown */}
-              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs space-y-1">
+          {/* Sticky Bottom Summary & Checkout Button */}
+          {cart.length > 0 && (
+            <div className="p-4 sm:p-5 border-t border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-md shrink-0 space-y-3">
+              {/* Breakdown */}
+              <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-zinc-500 text-[11px]">
-                  <span>Total Muatan Benih:</span>
+                  <span>Total Muatan Logistik:</span>
                   <span className="font-bold text-zinc-800 dark:text-zinc-200">
                     {cartTotalWeightKg} kg
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-500 text-[11px]">
-                  <span>Subtotal Benih:</span>
+                  <span>Subtotal Benih ({cart.length} varietas):</span>
                   <span className="font-bold text-zinc-800 dark:text-zinc-200">
                     Rp {cartSubtotal.toLocaleString('id-ID')}
                   </span>
                 </div>
                 <div className="flex justify-between text-zinc-500 text-[11px]">
-                  <span>Estimasi Ongkos Kirim:</span>
+                  <span>Estimasi Ongkos Kirim Armada Khusus:</span>
                   <span className="font-bold text-zinc-800 dark:text-zinc-200">
                     Rp {estimatedShipping.toLocaleString('id-ID')}
                   </span>
                 </div>
-                <div className="pt-1 border-t border-zinc-200 dark:border-zinc-700 flex justify-between font-black text-xs sm:text-sm text-emerald-700 dark:text-emerald-400">
-                  <span>Total Pembayaran:</span>
+                <div className="pt-1.5 border-t border-zinc-200 dark:border-zinc-700 flex justify-between font-black text-sm text-emerald-700 dark:text-emerald-400">
+                  <span>Total Tagihan:</span>
                   <span>Rp {grandTotal.toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
-              {/* Proceed to Checkout Button */}
+              {/* Glowing High-Touch Checkout Button */}
               <Button
                 type="button"
                 onClick={() => {
                   setIsCartDrawerOpen(false);
                   setIsCheckoutOpen(true);
                 }}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-11 shadow-md gap-1.5 cursor-pointer"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-13 shadow-xl gap-2 cursor-pointer active:scale-[0.99] transition"
               >
                 <span>Lanjut ke Pengiriman &amp; Pembayaran</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -725,19 +779,19 @@ export function PetaniCatalogView({
 
       {/* 5. CHECKOUT & PAYMENT DIALOG */}
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="max-w-lg rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg font-black text-zinc-900 dark:text-white">
               Konfirmasi Pengiriman &amp; Pembayaran
             </DialogTitle>
             <DialogDescription className="text-xs text-zinc-500">
-              Lengkapi data pemesan agar kurir logistik Kentara dapat mengantar langsung ke lahan.
+              Lengkapi data pemesan agar kurir logistik Kentara dapat mengantar langsung ke lahan Anda.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleProceedCheckout} className="space-y-3 my-2 text-xs">
-            {/* Contact */}
-            <div className="space-y-2">
+          <form onSubmit={handleProceedCheckout} className="space-y-3.5 my-2 text-xs">
+            {/* Contact Details */}
+            <div className="space-y-2.5">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
                   Nama Pemesan / Kelompok Tani *
@@ -748,7 +802,7 @@ export function PetaniCatalogView({
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Contoh: Bpk. Herman"
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
                 />
               </div>
 
@@ -763,7 +817,7 @@ export function PetaniCatalogView({
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="08123456789"
-                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
                   />
                 </div>
                 <div>
@@ -776,7 +830,7 @@ export function PetaniCatalogView({
                     value={shippingCity}
                     onChange={(e) => setShippingCity(e.target.value)}
                     placeholder="Bandung Barat"
-                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -791,20 +845,20 @@ export function PetaniCatalogView({
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                   placeholder="Nama jalan, patokan lahan, RT/RW, Desa..."
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                  Catatan untuk Kurir (Opsional)
+                  Catatan Khusus untuk Kurir (Opsional)
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Contoh: Titipkan di pos petani..."
-                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
                 />
               </div>
             </div>
@@ -818,7 +872,7 @@ export function PetaniCatalogView({
               <div className="grid grid-cols-2 gap-2">
                 <div
                   onClick={() => setPaymentMethodType('gateway')}
-                  className={`p-2.5 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
                     paymentMethodType === 'gateway'
                       ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
                       : 'border-zinc-200 dark:border-zinc-700'
@@ -830,12 +884,12 @@ export function PetaniCatalogView({
                       Online Gateway
                     </span>
                   </div>
-                  <span className="text-[9px] text-zinc-400 mt-0.5">QRIS, VA Bank, Kartu</span>
+                  <span className="text-[9px] text-zinc-400 mt-1">QRIS, VA Bank, Kartu</span>
                 </div>
 
                 <div
                   onClick={() => setPaymentMethodType('cash')}
-                  className={`p-2.5 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
                     paymentMethodType === 'cash'
                       ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
                       : 'border-zinc-200 dark:border-zinc-700'
@@ -847,22 +901,22 @@ export function PetaniCatalogView({
                       Bayar Tunai (COD)
                     </span>
                   </div>
-                  <span className="text-[9px] text-zinc-400 mt-0.5">Bayar ke kurir di lokasi</span>
+                  <span className="text-[9px] text-zinc-400 mt-1">Bayar ke kurir di lokasi</span>
                 </div>
               </div>
             </div>
 
             {/* Total Breakdown */}
-            <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 space-y-0.5">
-              <div className="flex justify-between text-zinc-500 text-[10px]">
+            <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 space-y-1">
+              <div className="flex justify-between text-zinc-500 text-[11px]">
                 <span>Subtotal ({cart.length} varietas):</span>
                 <span>Rp {cartSubtotal.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex justify-between text-zinc-500 text-[10px]">
+              <div className="flex justify-between text-zinc-500 text-[11px]">
                 <span>Ongkos Kirim ({cartTotalWeightKg} kg):</span>
                 <span>Rp {estimatedShipping.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex justify-between text-xs font-black text-emerald-700 dark:text-emerald-400 pt-0.5 border-t border-zinc-200 dark:border-zinc-700">
+              <div className="flex justify-between text-xs font-black text-emerald-700 dark:text-emerald-400 pt-1 border-t border-zinc-200 dark:border-zinc-700">
                 <span>Total yang Harus Dibayar:</span>
                 <span>Rp {grandTotal.toLocaleString('id-ID')}</span>
               </div>
@@ -871,7 +925,7 @@ export function PetaniCatalogView({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-12 shadow-lg gap-2 cursor-pointer"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-13 shadow-xl gap-2 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
