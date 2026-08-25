@@ -40,6 +40,7 @@ import {
   createOrderAndGetSnapAction,
   markOrderPaymentSuccessAction,
 } from '@/lib/admin/order-actions';
+import { LocationPicker } from '@/components/maps/location-picker';
 import type { Product } from '@/types/product';
 import type { UserProfile } from '@/types/auth';
 import type { CreateOrderItemInput } from '@/types/order';
@@ -90,6 +91,7 @@ export function PetaniCatalogView({
   const [customerEmail, setCustomerEmail] = useState(currentUser.email || '');
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [notes, setNotes] = useState('');
   const [paymentMethodType, setPaymentMethodType] = useState<'gateway' | 'cash'>('gateway');
 
@@ -195,6 +197,8 @@ export function PetaniCatalogView({
         customer_email: customerEmail || undefined,
         shipping_address: shippingAddress,
         shipping_city: shippingCity || undefined,
+        customer_latitude: customerCoords?.lat,
+        customer_longitude: customerCoords?.lng,
         shipping_cost: estimatedShipping,
         payment_method_type: paymentMethodType,
         items: orderItems,
@@ -764,6 +768,15 @@ export function PetaniCatalogView({
                   onChange={(e) => setShippingAddress(e.target.value)}
                   placeholder="Nama jalan, patokan lahan, RT/RW, Desa..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                />
+              </div>
+
+              {/* Pinpoint Location Picker with Leaflet & Current Location Button */}
+              <div className="pt-1">
+                <LocationPicker
+                  coords={customerCoords}
+                  onCoordsChange={setCustomerCoords}
+                  height="190px"
                 />
               </div>
 

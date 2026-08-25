@@ -38,6 +38,7 @@ import {
   createOrderAndGetSnapAction,
   markOrderPaymentSuccessAction,
 } from '@/lib/admin/order-actions';
+import { LocationPicker } from '@/components/maps/location-picker';
 import type { Product } from '@/types/product';
 import type { CreateOrderItemInput } from '@/types/order';
 
@@ -68,6 +69,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
   const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [notes, setNotes] = useState('');
   const [paymentMethodType, setPaymentMethodType] = useState<'gateway' | 'cash'>('gateway');
 
@@ -166,6 +168,8 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
         customer_email: customerEmail || undefined,
         shipping_address: shippingAddress,
         shipping_city: shippingCity || undefined,
+        customer_latitude: customerCoords?.lat,
+        customer_longitude: customerCoords?.lng,
         notes: notes || undefined,
         shipping_cost: shippingCost,
         payment_method_type: paymentMethodType,
@@ -546,6 +550,15 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
                   onChange={(e) => setShippingAddress(e.target.value)}
                   placeholder="Nama jalan, RT/RW, Dusun, Desa, Kecamatan..."
                   className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                />
+              </div>
+
+              {/* Pinpoint Location Picker with Leaflet & Current Location Button */}
+              <div className="pt-1">
+                <LocationPicker
+                  coords={customerCoords}
+                  onCoordsChange={setCustomerCoords}
+                  height="190px"
                 />
               </div>
 

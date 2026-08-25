@@ -38,6 +38,8 @@ export interface Order {
   customer_email?: string | null;
   shipping_address: string;
   shipping_city?: string | null;
+  customer_latitude?: number | null;
+  customer_longitude?: number | null;
   notes?: string | null;
   subtotal: number;
   shipping_cost: number;
@@ -85,6 +87,8 @@ export interface CreateOrderInput {
   customer_email?: string;
   shipping_address: string;
   shipping_city?: string;
+  customer_latitude?: number | null;
+  customer_longitude?: number | null;
   notes?: string;
   shipping_cost?: number;
   payment_method_type?: 'gateway' | 'cash';

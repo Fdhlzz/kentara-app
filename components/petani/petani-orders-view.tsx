@@ -556,6 +556,11 @@ export function PetaniOrdersView({
                   <p className="font-bold text-zinc-900 dark:text-white">{selectedOrder.customer_name} ({selectedOrder.customer_phone})</p>
                   <p>{selectedOrder.shipping_address}</p>
                   {selectedOrder.shipping_city && <p className="font-semibold">{selectedOrder.shipping_city}</p>}
+                  {typeof selectedOrder.customer_latitude === 'number' && typeof selectedOrder.customer_longitude === 'number' && (
+                    <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 pt-0.5">
+                      📍 Titik Pinpoint: {selectedOrder.customer_latitude.toFixed(5)}, {selectedOrder.customer_longitude.toFixed(5)}
+                    </p>
+                  )}
                   {selectedOrder.notes && (
                     <p className="text-zinc-400 italic pt-1 border-t border-zinc-200/60 dark:border-zinc-700/60">
                       Catatan kurir: &quot;{selectedOrder.notes}&quot;

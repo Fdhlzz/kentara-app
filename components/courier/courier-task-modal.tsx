@@ -67,6 +67,16 @@ interface CourierTaskModalProps {
 
 function getOrderCustomerCoords(order?: Order | null): [number, number] {
   if (!order) return [-5.1379367, 119.4357388];
+
+  if (
+    typeof order.customer_latitude === 'number' &&
+    typeof order.customer_longitude === 'number' &&
+    !isNaN(order.customer_latitude) &&
+    !isNaN(order.customer_longitude)
+  ) {
+    return [order.customer_latitude, order.customer_longitude];
+  }
+
   const addr = (order.shipping_address || '').toLowerCase();
   if (addr.includes('bontoala')) return [-5.1298, 119.4215];
   if (addr.includes('tamalanrea')) return [-5.1385, 119.4912];

@@ -113,6 +113,16 @@ export default function LeafletMapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update Center / Zoom
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    map.setView(center, zoom ?? map.getZoom());
+    if (isPickerMode && pickerMarkerRef.current) {
+      pickerMarkerRef.current.setLatLng(center);
+    }
+  }, [center, zoom, isPickerMode]);
+
   // Update Markers
   useEffect(() => {
     if (!mapInstanceRef.current || !markerGroupRef.current) return;

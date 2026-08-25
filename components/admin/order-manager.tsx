@@ -828,6 +828,24 @@ export function OrderManager({
                     {selectedOrder.shipping_address}{selectedOrder.shipping_city ? `, ${selectedOrder.shipping_city}` : ''}
                   </span>
                 </div>
+                {typeof selectedOrder.customer_latitude === 'number' && typeof selectedOrder.customer_longitude === 'number' && (
+                  <div className="pt-1 flex items-center justify-between">
+                    <span className="text-zinc-400 block text-[10px]">Koordinat GPS:</span>
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedOrder.customer_latitude},${selectedOrder.customer_longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>
+                        {selectedOrder.customer_latitude.toFixed(5)}, {selectedOrder.customer_longitude.toFixed(5)}
+                      </span>
+                      <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded-md">
+                        Buka Peta ↗
+                      </span>
+                    </a>
+                  </div>
+                )}
                 {selectedOrder.notes && (
                   <div className="pt-1">
                     <span className="text-zinc-400 block text-[10px]">Catatan Pembeli:</span>

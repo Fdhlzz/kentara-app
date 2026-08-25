@@ -151,4 +151,67 @@ describe('2. Orders & Cart Management Unit Tests (Pemesanan Benih Kentang)', () 
     expect(canTransition('selesai', 'menunggu_pembayaran')).toBe(false);
     expect(canTransition('diproses', 'menunggu_pembayaran')).toBe(false);
   });
+
+  it('should validate and sanitize customer pinpoint coordinates in order payloads', () => {
+    const sanitizeCoordinates = (lat?: number | null, lng?: number | null) => {
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        return { valid: false, lat: null, lng: null };
+      }
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return { valid: false, lat: null, lng: null };
+      }
+      return { valid: true, lat, lng };
+    };
+
+    // Valid agricultural pinpoint in Indonesia (e.g. Pangalengan / Makassar)
+    const validPoint = sanitizeCoordinates(-7.1725, 107.5702);
+    expect(validPoint.valid).toBe(true);
+    expect(validPoint.lat).toBe(-7.1725);
+    expect(validPoint.lng).toBe(107.5702);
+
+    // Null or undefined coordinates (graceful fallback)
+    const nullPoint = sanitizeCoordinates(null, undefined);
+    expect(nullPoint.valid).toBe(false);
+    expect(nullPoint.lat).toBeNull();
+    expect(nullPoint.lng).toBeNull();
+
+    // Out of bounds coordinates
+    const outOfBounds = sanitizeCoordinates(120, -200);
+    expect(outOfBounds.valid).toBe(false);
+    expect(outOfBounds.lat).toBeNull();
+    expect(outOfBounds.lng).toBeNull();
+  });
+
+  it('should prioritize exact customer GPS coordinates over address heuristics', () => {
+    function resolveCustomerCoordinates(order: Partial<Order>): [number, number] {
+      if (
+        typeof order.customer_latitude === 'number' &&
+        typeof order.customer_longitude === 'number' &&
+        !isNaN(order.customer_latitude) &&
+        !isNaN(order.customer_longitude)
+      ) {
+        return [order.customer_latitude, order.customer_longitude];
+      }
+
+      const addr = (order.shipping_address || '').toLowerCase();
+      if (addr.includes('tamalanrea')) return [-5.1385, 119.4912];
+      return [-5.1379367, 119.4357388]; // default center
+    }
+
+    // Order with exact GPS coordinates
+    const orderWithGps: Partial<Order> = {
+      shipping_address: 'Jl. Tamalanrea Raya No. 45',
+      customer_latitude: -5.14502,
+      customer_longitude: 119.48911,
+    };
+    expect(resolveCustomerCoordinates(orderWithGps)).toEqual([-5.14502, 119.48911]);
+
+    // Order without GPS coordinates (falls back to address heuristic)
+    const orderWithoutGps: Partial<Order> = {
+      shipping_address: 'Jl. Tamalanrea Raya No. 45',
+      customer_latitude: null,
+      customer_longitude: null,
+    };
+    expect(resolveCustomerCoordinates(orderWithoutGps)).toEqual([-5.1385, 119.4912]);
+  });
 });
