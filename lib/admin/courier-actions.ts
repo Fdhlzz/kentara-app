@@ -219,3 +219,225 @@ export async function deleteCourierAction(
     return { success: false, error: message };
   }
 }
+
+/**
+ * Kurir Action: Mulai Pengantaran (Swipe to Start Delivery)
+ */
+export async function startCourierDeliveryAction(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Sesi kurir tidak valid. Silakan login kembali.' };
+    }
+
+    // Verify order belongs to courier
+    const { data: order, error: findErr } = await supabase
+      .from('orders')
+      .select('id, order_code, courier_id, order_status, customer_name, user_id')
+      .eq('id', orderId)
+      .single();
+
+    if (findErr || !order) {
+      return { success: false, error: 'Pesanan tidak ditemukan.' };
+    }
+
+    if (order.courier_id !== user.id) {
+      return { success: false, error: 'Anda tidak memiliki otorisasi untuk pesanan ini.' };
+    }
+
+    // Update status to 'dikirim'
+    const { error: updateErr } = await supabase
+      .from('orders')
+      .update({
+        order_status: 'dikirim',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    // Send Realtime Push Notification to Petani / Buyer
+    try {
+      const { sendNotificationAction } = await import('@/lib/notifications/notification-actions');
+      await sendNotificationAction({
+        title: '🚚 Benih Sedang Diantar oleh Kurir!',
+        message: `Kurir sedang menuju ke lokasi lahan Anda untuk mengantarkan pesanan ${order.order_code}.`,
+        type: 'courier_task',
+        recipient_role: 'petani',
+        user_id: order.user_id || null,
+        order_id: orderId,
+        data: {
+          order_code: order.order_code,
+          url: '/petani',
+        },
+      });
+    } catch (notifErr) {
+      console.error('[startCourierDeliveryAction Notification Error]:', notifErr);
+    }
+
+    revalidatePath('/kurir');
+    revalidatePath('/admin');
+    revalidatePath('/petani');
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal memulai pengantaran.';
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Kurir Action: Selesaikan Pengantaran (Swipe to Finish + Cash Payment Verification)
+ */
+export async function completeCourierDeliveryAction(
+  orderId: string,
+  options?: {
+    cashPaidConfirmed?: boolean;
+    cashNotes?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Sesi kurir tidak valid. Silakan login kembali.' };
+    }
+
+    // 1. Fetch order
+    const { data: order, error: findErr } = await supabase
+      .from('orders')
+      .select('id, order_code, courier_id, payment_gateway, payment_status, total_amount, user_id, customer_name, paid_at')
+      .eq('id', orderId)
+      .single();
+
+    if (findErr || !order) {
+      return { success: false, error: 'Pesanan tidak ditemukan.' };
+    }
+
+    if (order.courier_id !== user.id) {
+      return { success: false, error: 'Anda tidak memiliki otorisasi untuk pesanan ini.' };
+    }
+
+    // 2. If Cash (COD) payment, check confirmation
+    const isCashOrder = order.payment_gateway === 'cash';
+    if (isCashOrder && !options?.cashPaidConfirmed) {
+      return {
+        success: false,
+        error: 'Mohon konfirmasi bahwa uang tunai (COD) telah Anda terima dari pembeli.',
+      };
+    }
+
+    const now = new Date().toISOString();
+
+    // 3. If Cash, update public.payments table
+    if (isCashOrder) {
+      await supabase
+        .from('payments')
+        .update({
+          payment_status: 'completed',
+          paid_at: now,
+          cash_collected_by: user.id,
+          notes: options?.cashNotes || `Uang tunai Rp ${order.total_amount.toLocaleString('id-ID')} diterima kurir saat pengantaran.`,
+        })
+        .eq('order_id', orderId);
+    }
+
+    // 4. Update order status to 'selesai' and payment_status to 'settlement'
+    const { error: updateErr } = await supabase
+      .from('orders')
+      .update({
+        order_status: 'selesai',
+        payment_status: 'settlement',
+        paid_at: order.paid_at || now,
+        updated_at: now,
+      })
+      .eq('id', orderId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    // 5. Send completion notifications to Admin & Buyer
+    try {
+      const { sendNotificationAction } = await import('@/lib/notifications/notification-actions');
+      await sendNotificationAction({
+        title: '🎉 Pesanan Benih Berhasil Tiba & Selesai!',
+        message: `Pesanan ${order.order_code} untuk ${order.customer_name} telah sukses diserahkan oleh kurir.`,
+        type: 'order_delivered',
+        recipient_role: 'all',
+        user_id: order.user_id || null,
+        order_id: orderId,
+        data: {
+          order_code: order.order_code,
+          url: '/petani',
+        },
+      });
+    } catch (notifErr) {
+      console.error('[completeCourierDeliveryAction Notification Error]:', notifErr);
+    }
+
+    revalidatePath('/kurir');
+    revalidatePath('/admin');
+    revalidatePath('/admin/orders');
+    revalidatePath('/admin/payments');
+    revalidatePath('/petani');
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal menyelesaikan pengantaran.';
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Kurir Action: Edit Profile Mandiri
+ */
+export async function updateCourierSelfProfileAction(input: {
+  full_name: string;
+  phone: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Sesi tidak valid.' };
+    }
+
+    if (!input.full_name?.trim()) {
+      return { success: false, error: 'Nama lengkap wajib diisi.' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: input.full_name.trim(),
+        phone: input.phone?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/kurir');
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal memperbarui profil.';
+    return { success: false, error: msg };
+  }
+}
