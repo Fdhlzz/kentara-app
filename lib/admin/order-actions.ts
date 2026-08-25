@@ -658,3 +658,38 @@ export async function deleteOrderAction(
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Customer / Petani Action: Get current user's order history
+ */
+export async function getPetaniOrdersAction(): Promise<Order[]> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return [];
+
+    const { data: userOrders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        courier:profiles!orders_courier_id_fkey(full_name, phone),
+        items:order_items(*)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error || !userOrders) {
+      console.error('[getPetaniOrdersAction Error]:', error);
+      return [];
+    }
+
+    return userOrders as Order[];
+  } catch (err) {
+    console.error('[getPetaniOrdersAction Exception]:', err);
+    return [];
+  }
+}
+

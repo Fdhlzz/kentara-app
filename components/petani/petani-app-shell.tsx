@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Flame,
   Truck,
+  Package,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ function PetaniAppShellInner({
   const [globalSearch, setGlobalSearch] = useState('');
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-100/70 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 pb-16 sm:pb-8">
+    <div className="min-h-screen flex flex-col bg-zinc-100/70 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 pb-20 sm:pb-8">
       {/* 1. ULTRA SLIM MOBILE-FIRST HEADER (56px) */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-zinc-200/90 dark:border-zinc-800 shadow-xs px-3 sm:px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 h-14 sm:h-16">
@@ -95,8 +96,17 @@ function PetaniAppShellInner({
             </div>
           </div>
 
-          {/* Right Action Icons: Cart, Theme Toggle, Isolated Notifications, User */}
+          {/* Right Action Icons: My Orders, Cart, Theme Toggle, Isolated Notifications, User */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Desktop Link: Pesanan Saya */}
+            <Link
+              href="/petani/orders"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-black text-zinc-700 dark:text-zinc-200 hover:text-emerald-600 px-3 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              <Package className="h-4 w-4 text-emerald-600" />
+              <span>Pesanan Saya</span>
+            </Link>
+
             {/* Shopping Cart Button */}
             <button
               type="button"
@@ -143,8 +153,8 @@ function PetaniAppShellInner({
         />
       </main>
 
-      {/* 3. MOBILE-FRIENDLY FOOTER */}
-      <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-6 text-center text-xs text-zinc-500">
+      {/* 3. MOBILE-FRIENDLY FOOTER (DESKTOP) */}
+      <footer className="mt-auto border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-6 text-center text-xs text-zinc-500 hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 space-y-2">
           <div className="flex items-center justify-center gap-2 text-zinc-700 dark:text-zinc-300 font-bold">
             <Sprout className="h-4 w-4 text-emerald-600" />
@@ -155,6 +165,39 @@ function PetaniAppShellInner({
           </p>
         </div>
       </footer>
+
+      {/* 4. MOBILE BOTTOM NAVIGATION BAR */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 py-2 px-6 flex items-center justify-around shadow-2xl">
+        <Link
+          href="/petani"
+          className="flex flex-col items-center gap-0.5 text-emerald-600 font-bold text-[10px]"
+        >
+          <Sprout className="h-5 w-5" />
+          <span>Pasar Benih</span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => setIsCartOpen(true)}
+          className="relative flex flex-col items-center gap-0.5 text-zinc-500 hover:text-emerald-600 font-bold text-[10px]"
+        >
+          <ShoppingBag className="h-5 w-5" />
+          <span>Keranjang</span>
+          {totalCount > 0 && (
+            <span className="absolute -top-1 right-2 h-4 min-w-[16px] px-1 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center shadow-xs">
+              {totalCount}
+            </span>
+          )}
+        </button>
+
+        <Link
+          href="/petani/orders"
+          className="flex flex-col items-center gap-0.5 text-zinc-500 hover:text-emerald-600 font-bold text-[10px]"
+        >
+          <Package className="h-5 w-5" />
+          <span>Pesanan Saya</span>
+        </Link>
+      </nav>
     </div>
   );
 }
