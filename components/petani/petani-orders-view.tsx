@@ -44,16 +44,23 @@ import type { UserProfile } from '@/types/auth';
 interface PetaniOrdersViewProps {
   orders: Order[];
   currentUser: UserProfile;
+  externalSearchQuery?: string;
 }
 
-export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniOrdersViewProps) {
+export function PetaniOrdersView({
+  orders: initialOrders,
+  currentUser,
+  externalSearchQuery = '',
+}: PetaniOrdersViewProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const { addToCart, setIsCartOpen } = useCart();
   const { openSnapPopup } = useMidtransSnap();
+
+  const activeSearch = externalSearchQuery || internalSearchQuery;
 
   // Status Tab Counts
   const counts = useMemo(() => {
@@ -94,8 +101,8 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
       }
 
       // Search Query Filtering
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (activeSearch.trim()) {
+        const q = activeSearch.toLowerCase();
         const matchCode = order.order_code.toLowerCase().includes(q);
         const matchCity = order.shipping_city?.toLowerCase().includes(q);
         const matchAddress = order.shipping_address?.toLowerCase().includes(q);
@@ -111,7 +118,7 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
 
       return true;
     });
-  }, [orders, activeTab, searchQuery]);
+  }, [orders, activeTab, activeSearch]);
 
   // Copy Order Code
   const copyOrderCode = (code: string) => {
@@ -234,116 +241,100 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-20">
-      {/* 1. TOP HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs">
-        <div>
+    <div className="space-y-3.5 sm:space-y-5">
+      {/* 1. STATUS TABS HEADER */}
+      <section className="bg-white dark:bg-zinc-900 p-2.5 sm:p-3.5 rounded-2xl sm:rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <Link
-              href="/petani"
-              className="p-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-emerald-600 transition"
-              title="Kembali ke Pasar Benih"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <h1 className="text-base sm:text-xl font-black text-zinc-900 dark:text-white leading-none">
-              Daftar Pesanan Benih Saya
-            </h1>
+            <div className="h-7 w-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+              <Package className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white">
+              Riwayat Pesanan ({orders.length})
+            </h2>
           </div>
-          <p className="text-xs text-zinc-400 font-medium mt-1">
-            Pantau status pesanan, pembayaran, dan armada pengiriman benih ke lahan Anda.
-          </p>
+          <span className="text-[10px] text-zinc-400 font-bold">
+            {filteredOrders.length} ditampilkan
+          </span>
         </div>
 
-        {/* Search Bar for Orders */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari kode pesanan / benih..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-          />
+        {/* Scrollable Status Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none px-0.5 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'all'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Semua ({counts.all})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('menunggu_pembayaran')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'menunggu_pembayaran'
+                ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Belum Bayar ({counts.menunggu_pembayaran})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('diproses')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'diproses'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Diproses ({counts.diproses})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dikirim')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'dikirim'
+                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Dikirim ({counts.dikirim})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('selesai')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'selesai'
+                ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Selesai ({counts.selesai})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dibatalkan')}
+            className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
+              activeTab === 'dibatalkan'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+            }`}
+          >
+            Dibatalkan ({counts.dibatalkan})
+          </button>
         </div>
-      </div>
+      </section>
 
-      {/* 2. HORIZONTAL SCROLLABLE STATUS TABS */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none px-0.5">
-        <button
-          type="button"
-          onClick={() => setActiveTab('all')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'all'
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Semua ({counts.all})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('menunggu_pembayaran')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'menunggu_pembayaran'
-              ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Belum Bayar ({counts.menunggu_pembayaran})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('diproses')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'diproses'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Diproses ({counts.diproses})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('dikirim')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'dikirim'
-              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Dikirim ({counts.dikirim})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('selesai')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'selesai'
-              ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Selesai ({counts.selesai})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('dibatalkan')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap shrink-0 transition cursor-pointer border ${
-            activeTab === 'dibatalkan'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Dibatalkan ({counts.dibatalkan})
-        </button>
-      </div>
-
-      {/* 3. ORDER CARDS LIST */}
+      {/* 2. ORDER CARDS LIST */}
       {filteredOrders.length === 0 ? (
         <Card className="p-8 sm:p-12 text-center rounded-2xl sm:rounded-3xl border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 space-y-3">
           <div className="h-14 w-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
@@ -364,7 +355,7 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
           </Link>
         </Card>
       ) : (
-        <div className="space-y-3.5 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredOrders.map((order) => {
             const isPendingPayment = order.order_status === 'menunggu_pembayaran';
             const isInDelivery = order.order_status === 'dikirim';
@@ -374,7 +365,7 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
             return (
               <div
                 key={order.id}
-                className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xs hover:border-emerald-500/40 transition-all space-y-3.5"
+                className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xs hover:border-emerald-500/40 transition-all space-y-3"
               >
                 {/* Header Row: Code, Date, Status */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-100 dark:border-zinc-800">
@@ -537,7 +528,7 @@ export function PetaniOrdersView({ orders: initialOrders, currentUser }: PetaniO
         </div>
       )}
 
-      {/* 4. DETAIL PESANAN BOTTOM SHEET / MODAL */}
+      {/* 3. DETAIL PESANAN BOTTOM SHEET / MODAL */}
       <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
         {selectedOrder && (
           <DialogContent className="max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
