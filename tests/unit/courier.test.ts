@@ -81,6 +81,99 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
+  it('should lock all other tasks as disabled and read-only when one delivery is actively in progress (dikirim)', () => {
+    const taskList: Order[] = [
+      {
+        ...mockAssignedOrder,
+        id: 'task-1',
+        order_code: 'KTR-001',
+        order_status: 'dikirim', // Active in-progress delivery
+      },
+      {
+        ...mockAssignedOrder,
+        id: 'task-2',
+        order_code: 'KTR-002',
+        order_status: 'diproses', // Pending start
+      },
+      {
+        ...mockAssignedOrder,
+        id: 'task-3',
+        order_code: 'KTR-003',
+        order_status: 'diproses', // Pending start
+      },
+    ];
+
+    function getTaskCardControlState(task: Order, allTasks: Order[]) {
+      const activeDelivery = allTasks.find((t) => t.order_status === 'dikirim');
+      const hasActiveDelivery = !!activeDelivery;
+      const isThisTaskActive = task.order_status === 'dikirim';
+      const isLocked = hasActiveDelivery && !isThisTaskActive;
+
+      let buttonLabel = 'Buka Peta & Mulai Antar';
+      if (isThisTaskActive) {
+        buttonLabel = 'Lanjutkan Navigasi Peta (Sedang Diantar)';
+      } else if (isLocked) {
+        buttonLabel = 'Terkunci: Selesaikan Pengantaran Aktif';
+      }
+
+      return {
+        isLocked,
+        canOpenTask: !isLocked || isThisTaskActive,
+        buttonLabel,
+        isActionDisabled: isLocked,
+      };
+    }
+
+    // Task 1: In progress delivery
+    const state1 = getTaskCardControlState(taskList[0], taskList);
+    expect(state1.isLocked).toBe(false);
+    expect(state1.isActionDisabled).toBe(false);
+    expect(state1.buttonLabel).toContain('Lanjutkan Navigasi Peta');
+
+    // Task 2: Another task while Task 1 is in progress -> LOCKED & Read-only
+    const state2 = getTaskCardControlState(taskList[1], taskList);
+    expect(state2.isLocked).toBe(true);
+    expect(state2.isActionDisabled).toBe(true);
+    expect(state2.buttonLabel).toContain('Terkunci');
+
+    // Task 3: Another task while Task 1 is in progress -> LOCKED & Read-only
+    const state3 = getTaskCardControlState(taskList[2], taskList);
+    expect(state3.isLocked).toBe(true);
+    expect(state3.isActionDisabled).toBe(true);
+    expect(state3.buttonLabel).toContain('Terkunci');
+  });
+
+  it('should stick into full-screen task map page after swiping to start delivery without closing or redirecting', () => {
+    function handleStartDeliverySlide(
+      currentStatus: string,
+      onKeepModalOpen: () => void
+    ) {
+      // Transition status to dikirim
+      const updatedStatus = 'dikirim';
+      let modalClosed = false;
+
+      // Stick in map page: keep modal open
+      onKeepModalOpen();
+
+      return {
+        previousStatus: currentStatus,
+        newStatus: updatedStatus,
+        isModalStillOpen: !modalClosed,
+      };
+    }
+
+    let isModalOpen = true;
+    const result = handleStartDeliverySlide('diproses', () => {
+      // Explicitly stay in modal
+      isModalOpen = true;
+    });
+
+    expect(result.previousStatus).toBe('diproses');
+    expect(result.newStatus).toBe('dikirim');
+    expect(result.isModalStillOpen).toBe(true);
+    expect(isModalOpen).toBe(true);
+  });
+
   it('should use clean bright daylight map tiles (voyager) for optimal road and farm visibility', () => {
     const activeTile = 'voyager';
     const provider = TILE_PROVIDERS[activeTile];

@@ -104,7 +104,7 @@ export function CourierTaskModal({
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [countdown, setCountdown] = useState(3);
 
-  // Sync state when order prop changes
+  // Sync state when order prop changes (only reset if new order opened)
   useEffect(() => {
     if (order) {
       setCurrentOrderStatus(order.order_status);
@@ -112,7 +112,7 @@ export function CourierTaskModal({
       setIsSuccessModalOpen(false);
       setIsSheetMinimized(false);
     }
-  }, [order?.id, order?.order_status]);
+  }, [order?.id]);
 
   // Automatic countdown redirect to main pages when success modal is open
   useEffect(() => {
