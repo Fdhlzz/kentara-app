@@ -1,108 +1,167 @@
-# 🌾 Kentara — Marketplace Benih Pertanian Unggul
+# Kentara — Agricultural Seed Marketplace Platform
 
-**Kentara** adalah platform e-commerce dan marketplace modern yang dirancang khusus untuk memfasilitasi jual beli benih pertanian unggul, berkualitas, dan bersertifikasi di Indonesia.
+Kentara is a modern e-commerce and logistics marketplace designed specifically for verified, high-quality agricultural seed distribution in Indonesia, with a primary focus on certified potato seed tubers (*Solanum tuberosum*), grains, and horticulture.
 
----
+## Live Deployment
 
-## 🎯 Tujuan & Visi Proyek
-
-* **Tujuan Utama:** Menghubungkan petani, produsen benih lokal/nasional, serta penghobi tanaman dengan akses langsung ke benih pertanian berkualitas tinggi (benih padi, jagung, palawija, sayuran, buah-buahan, dan tanaman perkebunan).
-* **Bahasa Utama Aplikasi:** **Bahasa Indonesia** — Semua antarmuka pengguna (UI), deskripsi produk, notifikasi, dan komunikasi transaksi dirancang secara native menggunakan Bahasa Indonesia.
+The live production application is accessible at:
+- **URL:** [https://www.kentara.my.id](https://www.kentara.my.id)
 
 ---
 
-## 📱 Panduan Pengembangan: Mobile-First Focus
+## Overview and Purpose
 
-> [!IMPORTANT]
-> **Aplikasi ini diutamakan untuk versi mobile (Mobile-First Experience).** Semua pengembangan fitur dan antarmuka masa depan **wajib memprioritaskan tata letak, kenyamanan, dan performa pada perangkat mobile** menggunakan kombinasi **shadcn/ui** dan **Tailwind CSS**.
+Agricultural productivity begins with seed quality. Kentara bridges certified seed breeders, agricultural cooperatives, logistics partners, and farmers through a unified, mobile-first web platform.
 
-### Prinsip Desain Mobile UI:
-1. **Komponen shadcn/ui & Tailwind CSS:**
-   - Gunakan komponen shadcn/ui (Button, Dialog, Sheet/Drawer, Card, Tabs, Input, Select, Badge, Skeleton, dll.) yang disesuaikan dengan tema hijau pertanian (*emerald / forest green*).
-   - Manfaatkan utility classes Tailwind CSS v4 untuk styling yang fleksibel, konsisten, dan ringan.
-2. **Thumb-Friendly Touch Targets:**
-   - Semua tombol dan elemen interaktif memiliki area sentuh minimal `44x44px` agar nyaman diakses satu tangan oleh petani/pengguna di lapangan.
-3. **Pola Navigasi Mobile:**
-   - Prioritaskan *Bottom Navigation Bar* untuk navigasi utama (Beranda, Katalog Benih, Transaksi, Akun).
-   - Gunakan *Sheet / Bottom Drawer* untuk filter pencarian, varietas benih, dan keranjang belanja.
-4. **Safe Area & Responsivitas:**
-   - Pastikan layout mendukung notch dan gesture bar (`viewport-fit=cover`, safe area padding).
-   - Tampilan desktop tetap rapi (misal: layout max-width terpusat atau responsive expanded view) dengan basis mobile yang solid.
+Key Objectives:
+- Direct access to certified seed varieties (e.g., Granola L, Atlantic, Medians) across seed classes (G0, G1, G2, G3).
+- Precise land-delivery logistics with interactive Leaflet map pinpointing and real-time courier tracking.
+- Secure transactions supporting both online payments (Midtrans Snap) and Cash on Delivery (COD) workflows.
 
 ---
 
-## 🚀 Fitur Utama
+## Key Features
 
-- 🛒 **Katalog & Belanja Benih:** Pencarian, filter varietas benih, spesifikasi daya tumbuh, masa panen, dan rekomendasi iklim tanam.
-- 📱 **Progressive Web App (PWA):** Dapat di-install langsung di perangkat mobile (Android/iOS) dan Desktop layaknya aplikasi native, dilengkapi dengan kemampuan *offline caching*.
-- 🔐 **Autentikasi & Database Terintegrasi:** Didukung oleh **Supabase (PostgreSQL)** dengan Row Level Security (RLS) dan session SSR yang aman.
-- ⚡ **Performa & Desain Modern:** Dibangun dengan Next.js 16 App Router, React 19, Tailwind CSS v4, dan shadcn/ui.
-- 🔄 **Otomasi CI/CD:** Pipeline otomatis melalui **GitHub Actions** untuk verifikasi kode (lint, type-check, build) dan deployment otomatis ke **Vercel**.
+### 1. Mobile-First Seed Marketplace
+- Dynamic seed catalog with variety filtering, certification class details, sprout readiness status, and elevation guidelines.
+- Multi-item shopping cart backed by Supabase database synchronization and guest fallback support.
+- Direct checkout workflow with automated weight-based logistics fee calculation.
 
----
+### 2. Interactive Leaflet Geolocation & Land Pinpointing
+- Precise map picker powered by Leaflet to pin delivery locations down to specific agricultural plots.
+- One-touch **"Get Current Location"** button utilizing the browser Geolocation API (`navigator.geolocation`) with high-accuracy GPS positioning.
+- Real-time road routing calculations powered by OSRM driving engine.
 
-## 🛠️ Tech Stack
+### 3. Comprehensive Payment Workflows
+- **Online Gateway:** Midtrans Snap integration supporting QRIS, Bank Virtual Accounts (BCA, Mandiri, BRI, BNI), and e-wallets.
+- **Cash on Delivery (COD):** Field collection by verified couriers with digital receipt confirmation.
+- Automated inventory deduction upon payment settlement.
 
-* **Framework:** [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
-* **Library UI:** [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
-* **Icons:** [Lucide React](https://lucide.dev/)
-* **Database & Auth:** [Supabase](https://supabase.com/) (`@supabase/ssr`, PostgreSQL 17)
-* **PWA Engine:** Web App Manifest (`app/manifest.ts`), Custom Service Worker (`public/sw.js`)
-* **Deployment & CI/CD:** [Vercel](https://vercel.com/), [GitHub Actions](https://github.com/features/actions)
+### 4. Courier Logistics & Delivery Tracking
+- Dedicated courier portal with task assignments, route maps, and turn-by-turn navigation links.
+- Real-time delivery progress updates and location reporting.
+- Instant in-app notifications and background Web Push alerts.
 
----
-
-## 📦 Struktur PWA (Progressive Web App)
-
-Aplikasi Kentara dilengkapi dengan konfigurasi PWA standar:
-* `app/manifest.ts`: Metadata Web App Manifest (Nama, deskripsi, warna tema, orientasi, dan ikon).
-* `public/sw.js`: Service Worker untuk caching asset statis dan fallback offline.
-* `public/icons/`: Ikon aplikasi dalam berbagai resolusi (`192x192`, `512x512`, maskable, apple-touch-icon).
+### 5. Administration & Role-Based Control
+- Multi-role security guardrails for Administrators, Couriers (`kurir`), and Farmers/Buyers (`petani`).
+- Management dashboards for product inventory, order lifecycle transitions, financial reporting, and courier assignments.
 
 ---
 
-## 💻 Memulai Pengembangan (Local Development)
+## Technology Stack
 
-1. **Clone repository:**
+- **Framework:** Next.js 16 (App Router, Turbopack)
+- **Frontend Core:** React 19, TypeScript
+- **Styling & UI:** Tailwind CSS v4, shadcn/ui
+- **Icons:** Lucide React
+- **Mapping & Geolocation:** Leaflet, OpenStreetMap / CARTO Voyager, OSRM Routing Engine
+- **Database & Authentication:** Supabase (PostgreSQL, Row Level Security, SSR Sessions)
+- **Payment Processing:** Midtrans Snap Engine
+- **PWA Capabilities:** Web App Manifest, Service Worker caching
+- **Testing:** Vitest, Test-Driven Development (TDD)
+- **CI/CD & Hosting:** GitHub Actions, Vercel
+
+---
+
+## Project Structure
+
+```
+kentara-app/
+├── app/                  # Next.js App Router (pages, layouts, API routes)
+│   ├── admin/            # Admin dashboard and management pages
+│   ├── api/              # Midtrans webhooks, Snap, and push notification endpoints
+│   ├── kurir/            # Courier dispatch and delivery tracking portal
+│   ├── petani/           # Farmer marketplace, product detail, and order pages
+│   ├── login/            # Authentication interface
+│   └── layout.tsx        # Root application layout
+├── components/           # Reusable UI and domain components
+│   ├── admin/            # Admin management components
+│   ├── courier/          # Logistics dispatch and modal components
+│   ├── maps/             # Leaflet map views and location pickers
+│   ├── marketplace/      # Public catalog and seed showcase
+│   ├── petani/           # Farmer marketplace components
+│   └── ui/               # Base shadcn/ui primitives
+├── context/              # Global React context providers
+├── hooks/                # Custom React hooks
+├── lib/                  # Server actions, Supabase clients, and utilities
+├── public/               # Static assets, icons, and service worker
+├── tests/                # Automated Vitest test suite
+└── types/                # TypeScript type definitions and interfaces
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20.x or higher
+- npm 10.x or higher
+- A configured Supabase project with PostgreSQL
+
+### Installation
+
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/Fdhlzz/kentara-app.git
    cd kentara-app
    ```
 
-2. **Instal dependensi:**
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. **Konfigurasi Environment Variables:**
-   Salin `.env.example` atau buat `.env.local` dengan konfigurasi Supabase:
+3. **Configure environment variables:**
+   Create a `.env.local` file in the project root:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<your-supabase-publishable-key>
+   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+
+   # Midtrans Payment Gateway
+   MIDTRANS_SERVER_KEY=<your-midtrans-server-key>
+   NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=<your-midtrans-client-key>
+   MIDTRANS_IS_PRODUCTION=false
    ```
 
-4. **Jalankan development server:**
+4. **Run the development server:**
    ```bash
    npm run dev
    ```
 
-5. Buka [http://localhost:3000](http://localhost:3000) di browser Anda (disarankan membuka dalam mobile device emulation di DevTools).
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 Pengujian Unit & Skrip Perintah (Unit Testing)
+## Testing & Quality Assurance
 
-Aplikasi Kentara menerapkan standar **Test-Driven Development (TDD)** dengan rangkaian unit test otomatis menggunakan **Vitest**:
+Kentara enforces a Test-Driven Development (TDD) workflow. All business logic, state transitions, and calculations are covered by unit tests.
 
-* `npm test` — Menjalankan seluruh rangkaian unit test (`tests/unit/`)
-* `npm run dev` — Menjalankan server pengembangan Next.js
-* `npm run build` — Membangun build produksi untuk deployment
-* `npm run lint` — Menjalankan pemeriksaan kode dengan ESLint
-* `npx tsc --noEmit` — Menjalankan pemeriksaan tipe TypeScript
+### Running Tests
 
-### Modul Pengujian yang Dicakup (`tests/unit/`):
-1. **`products.test.ts`** — Validasi varietas benih kentang, stok, kelas sertifikasi (`G0`-`G3`), dan kalkulasi metrik katalog.
-2. **`orders.test.ts`** — Kode pesanan, kalkulasi keranjang belanja multi-item, pemotongan stok otomatis saat bayar lunas, dan lifecycle status.
-3. **`payments.test.ts`** — Gerbang pembayaran online (Midtrans), verifikasi pembayaran tunai (COD), dan agregasi omzet keuangan.
-4. **`courier.test.ts`** — Penugasan mitra kurir pengantar, validasi peran, dan pelacakan daftar tugas logistik.
-5. **`notifications.test.ts`** — Notifikasi real-time in-app dan payload Web Push background PWA.
+```bash
+# Run test suite
+npm test
+
+# Run type check
+npx tsc --noEmit
+
+# Run production build validation
+npm run build
+```
+
+### Test Coverage (`tests/unit/`)
+
+- **`products.test.ts`**: Product catalog filtering, stock limits, and variety certification validations.
+- **`orders.test.ts`**: Order code generation, customer coordinate validation, multi-item subtotals, and state machine transitions.
+- **`payments.test.ts`**: Payment status handling, cash collection validation, and revenue aggregation.
+- **`courier.test.ts`**: Dispatch assignment, role permission verification, and logistics state management.
+- **`courier-location.test.ts`**: Geolocation coordinates sanitization, movement delta thresholds, and route caching.
+- **`notifications.test.ts`**: Recipient role isolation and push payload structure validation.
+
+---
+
+## License
+
+This project is proprietary software developed for the Kentara agricultural network.
