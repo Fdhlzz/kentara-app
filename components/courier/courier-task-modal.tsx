@@ -21,15 +21,11 @@ import {
   ShieldCheck,
   Check,
   Loader2,
-  Compass,
-  Gauge,
-  Sparkles,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -95,14 +91,13 @@ export function CourierTaskModal({
   const [cashNotes, setCashNotes] = useState('');
   const [isItemsExpanded, setIsItemsExpanded] = useState(false);
 
-  // Resolved dynamic coordinate Makassar for customer destination
+  // Customer destination coordinate in Makassar
   const customerCoords = getOrderCustomerCoords(order);
 
-  // REAL LIVE GPS TRACKING: Tracks device's actual physical coordinates in real-time
+  // REAL LIVE GPS TRACKING: Direct hardware GPS position from courier's device
   const isDeliveryActive = isOpen && !!order;
   const {
     currentPosition,
-    speed,
     accuracy,
     isGpsActive,
     isLocating,
@@ -111,11 +106,10 @@ export function CourierTaskModal({
   } = useCourierLocationTracker({
     orderId: order?.id,
     isActive: isDeliveryActive,
-    minDistanceMeters: 10, // 10 meters distance delta
-    minIntervalMs: 10000,  // 10 seconds heartbeat
+    minDistanceMeters: 10,
+    minIntervalMs: 10000,
   });
 
-  // Courier position uses real device GPS if available; otherwise defaults to start coordinate
   const courierPosition: [number, number] = currentPosition || [
     customerCoords[0] - 0.012,
     customerCoords[1] - 0.015,
@@ -123,7 +117,7 @@ export function CourierTaskModal({
 
   const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
 
-  // Load real road routing
+  // Real road route geometry
   useEffect(() => {
     if (!isOpen) return;
     let isCancelled = false;
@@ -216,13 +210,11 @@ export function CourierTaskModal({
 
   // 2. Swipe to Finish Delivery
   const handleFinishDeliveryAttempt = () => {
-    // If cash order and not yet paid, open Cash Confirmation modal
     if (isCashOrder && order.payment_status !== 'settlement' && order.payment_status !== 'paid') {
       setIsCashConfirmOpen(true);
       return;
     }
 
-    // Direct completion for online gateway paid orders
     executeCompleteDelivery(true, 'Pengantaran telah diselesaikan oleh kurir.');
   };
 
@@ -255,136 +247,138 @@ export function CourierTaskModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200">
-      {/* 1. Floating Top Navigation Bar (Driver Cockpit Header) */}
-      <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-2 max-w-lg mx-auto">
-        <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 flex-1 min-w-0">
-          <Badge className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 shrink-0">
-            {order.order_code}
-          </Badge>
-          <div className="min-w-0 flex-1">
-            <span className="text-xs font-bold text-zinc-900 dark:text-white truncate block">
-              {order.customer_name}
-            </span>
-            <span className="text-[10px] text-zinc-500 truncate block">
-              {order.shipping_city || 'Makassar'}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Quick WA Button */}
-          <a
-            href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
-            target="_blank"
-            rel="noreferrer"
-            className="h-10 w-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
-            title="Kirim WhatsApp ke Pembeli"
-          >
-            <MessageCircle className="h-4 w-4" />
-          </a>
-
-          {/* Direct Phone Call Button */}
-          <a
-            href={`tel:${order.customer_phone}`}
-            className="h-10 w-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
-            title="Telepon Pembeli"
-          >
-            <Phone className="h-4 w-4" />
-          </a>
-
-          {/* Close / Minimize Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 w-10 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 text-white flex items-center justify-center shadow-lg transition active:scale-95 border border-zinc-700/50"
-            title="Tutup Navigasi"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Full-Screen Leaflet Map Area */}
-      <div className="flex-1 w-full h-full relative">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col w-screen h-screen overflow-hidden select-none">
+      {/* 1. Full-Screen Edge-to-Edge Leaflet Map (Zero Rounding, Zero Borders) */}
+      <div className="absolute inset-0 w-full h-full z-0">
         <LeafletMap
           center={courierPosition}
           zoom={14}
           markers={markers}
           route={route}
           height="100%"
-          className="w-full h-full"
+          className="w-full h-full rounded-none border-none shadow-none"
         />
+      </div>
 
-        {/* Floating HUD Badges (ETA, Distance & Real GPS Signal) */}
-        <div className="absolute top-18 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 max-w-lg mx-auto pointer-events-none">
-          {/* ETA & Distance */}
-          <div className="flex items-center gap-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-3 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-xs pointer-events-auto">
-            <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 font-black">
-              <Clock className="h-3.5 w-3.5" />
-              <span>{etaMinutes} mnt</span>
-            </div>
-            <span className="text-zinc-300 dark:text-zinc-700">|</span>
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold">
-              <Navigation className="h-3.5 w-3.5" />
-              <span>{distanceKm} km ({distanceMeters} m)</span>
+      {/* 2. Floating Top Driver Cockpit Header */}
+      <div className="relative z-30 pt-3 px-3 max-w-lg mx-auto w-full pointer-events-auto">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 flex-1 min-w-0">
+            <Badge className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 shrink-0">
+              {order.order_code}
+            </Badge>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-bold text-zinc-900 dark:text-white truncate block">
+                {order.customer_name}
+              </span>
+              <span className="text-[10px] text-zinc-500 truncate block">
+                {order.shipping_city || 'Makassar'}
+              </span>
             </div>
           </div>
 
-          {/* Real GPS Status & Recenter Button */}
-          <div className="flex items-center gap-1.5 pointer-events-auto">
-            <div className="flex items-center gap-1.5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-2.5 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-[10px]">
-              {isGpsActive ? (
-                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
-                  <span>GPS Asli Aktif</span>
-                  {accuracy && <span className="text-zinc-400">(&plusmn;{accuracy}m)</span>}
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Cari GPS...</span>
-                </div>
-              )}
-            </div>
-
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              onClick={recenterGps}
-              disabled={isLocating}
-              className="h-9 w-9 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800 shadow-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-zinc-800 cursor-pointer"
-              title="Pusatkan ke GPS Saya"
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Quick WA Button */}
+            <a
+              href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
+              target="_blank"
+              rel="noreferrer"
+              className="h-10 w-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
+              title="Kirim WhatsApp ke Pembeli"
             >
-              <Locate className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
-            </Button>
+              <MessageCircle className="h-4 w-4" />
+            </a>
+
+            {/* Direct Phone Call Button */}
+            <a
+              href={`tel:${order.customer_phone}`}
+              className="h-10 w-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
+              title="Telepon Pembeli"
+            >
+              <Phone className="h-4 w-4" />
+            </a>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 w-10 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 text-white flex items-center justify-center shadow-lg transition active:scale-95 border border-zinc-700/50"
+              title="Tutup Navigasi"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Floating Telemetry HUD (ETA, Distance & Real GPS Signal) */}
+      <div className="relative z-20 px-3 pt-2 max-w-lg mx-auto w-full pointer-events-none flex items-center justify-between gap-2">
+        {/* ETA & Distance */}
+        <div className="flex items-center gap-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-3 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-xs pointer-events-auto">
+          <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 font-black">
+            <Clock className="h-3.5 w-3.5" />
+            <span>{etaMinutes} mnt</span>
+          </div>
+          <span className="text-zinc-300 dark:text-zinc-700">|</span>
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold">
+            <Navigation className="h-3.5 w-3.5" />
+            <span>{distanceKm} km ({distanceMeters} m)</span>
           </div>
         </div>
 
-        {/* GPS Error Alert if permission denied */}
-        {gpsError && (
-          <div className="absolute top-32 left-3 right-3 z-20 max-w-lg mx-auto">
-            <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/90 border border-amber-300 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-2 shadow-lg backdrop-blur-md">
-              <div className="flex items-center gap-1.5">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                <span className="text-[11px] font-medium">{gpsError}</span>
+        {/* Real GPS Status & Recenter Button */}
+        <div className="flex items-center gap-1.5 pointer-events-auto">
+          <div className="flex items-center gap-1.5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-2 px-2.5 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-[10px]">
+            {isGpsActive ? (
+              <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                <span>GPS Asli</span>
+                {accuracy && <span className="text-zinc-400">(&plusmn;{accuracy}m)</span>}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={recenterGps}
-                className="h-6 text-[10px] px-2 rounded-lg"
-              >
-                Coba Lagi
-              </Button>
-            </div>
+            ) : (
+              <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Cari GPS...</span>
+              </div>
+            )}
           </div>
-        )}
+
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={recenterGps}
+            disabled={isLocating}
+            className="h-9 w-9 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800 shadow-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-zinc-800 cursor-pointer"
+            title="Pusatkan ke GPS Saya"
+          >
+            <Locate className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      {/* 3. Bottom Sliding Task Sheet & Driver Action Controls */}
-      <div className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 pb-6 space-y-3 z-30 shadow-2xl rounded-t-3xl max-w-lg mx-auto w-full">
+      {/* GPS Error Alert */}
+      {gpsError && (
+        <div className="relative z-20 px-3 pt-2 max-w-lg mx-auto w-full pointer-events-auto">
+          <div className="p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/90 border border-amber-300 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-2 shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-1.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span className="text-[11px] font-medium">{gpsError}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={recenterGps}
+              className="h-6 text-[10px] px-2 rounded-lg"
+            >
+              Coba Lagi
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Bottom Sliding Task Sheet & Driver Action Controls */}
+      <div className="mt-auto relative z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 pb-6 space-y-3 shadow-2xl rounded-t-3xl max-w-lg mx-auto w-full pointer-events-auto">
         {/* Swipe Handle Indicator */}
         <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto -mt-1" />
 
@@ -449,7 +443,7 @@ export function CourierTaskModal({
             <button
               type="button"
               onClick={() => setIsItemsExpanded(!isItemsExpanded)}
-              className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition"
+              className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
             >
               <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
                 <Package className="h-3.5 w-3.5 text-blue-600" />
@@ -473,7 +467,7 @@ export function CourierTaskModal({
           </div>
         </div>
 
-        {/* 4. Interactive Mobile Swipe-to-Action Buttons */}
+        {/* 5. Interactive Mobile Swipe-to-Action Buttons */}
         <div>
           {isFinished ? (
             <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-900 text-center text-xs font-bold text-zinc-600 dark:text-zinc-400 flex items-center justify-center gap-2">
