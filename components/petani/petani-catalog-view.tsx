@@ -28,6 +28,11 @@ import {
   Award,
   Leaf,
   Info,
+  Star,
+  Flame,
+  Truck,
+  Percent,
+  Check,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +68,7 @@ interface PetaniCatalogViewProps {
   onCartCountChange: (count: number) => void;
   isCartDrawerOpen: boolean;
   setIsCartDrawerOpen: (open: boolean) => void;
+  externalSearchQuery?: string;
 }
 
 export function PetaniCatalogView({
@@ -72,13 +78,18 @@ export function PetaniCatalogView({
   onCartCountChange,
   isCartDrawerOpen,
   setIsCartDrawerOpen,
+  externalSearchQuery = '',
 }: PetaniCatalogViewProps) {
-  // Filter & Search States
-  const [searchQuery, setSearchQuery] = useState('');
+  // Search & Filter States
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
   const [selectedVariety, setSelectedVariety] = useState<string>('all');
   const [selectedSeedClass, setSelectedSeedClass] = useState<string>('all');
   const [selectedSproutStatus, setSelectedSproutStatus] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'relevance' | 'price_asc' | 'price_desc' | 'stock_desc'>('relevance');
+  const [selectedCategoryTag, setSelectedCategoryTag] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'relevance' | 'price_asc' | 'price_desc' | 'stock_desc' | 'rating_desc'>('relevance');
+
+  // Active Promo Banner Slide index
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   // Cart & Modal States
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -100,11 +111,53 @@ export function PetaniCatalogView({
 
   const { openSnapPopup } = useMidtransSnap();
 
+  // Combine external & internal search query
+  const activeSearch = externalSearchQuery || internalSearchQuery;
+
   // Sync cart count with parent navbar
   useEffect(() => {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
     onCartCountChange(totalItems);
   }, [cart, onCartCountChange]);
+
+  // Promotional Marketplace Banners
+  const promoBanners = [
+    {
+      id: 1,
+      badge: 'PROMO MUSIM TANAM 2026',
+      title: 'Benih Granola L - G2 Pangalengan Bersertifikat',
+      subtitle: 'Daya tumbuh unggul >95%, tahan busuk daun Phytophthora. Gratis Subsidi Ongkir!',
+      bgGradient: 'from-emerald-800 via-emerald-700 to-teal-900',
+      actionText: 'Lihat Granola L',
+      filterVariety: 'Granola L',
+    },
+    {
+      id: 2,
+      badge: 'SPESIAL INDUSTRI OLAHAN',
+      title: 'Benih Kentang Atlantic G1 Super',
+      subtitle: 'Kadar padatan tinggi, bentuk bulat seragam, favorit industri chips & french fries.',
+      bgGradient: 'from-blue-900 via-indigo-800 to-teal-900',
+      actionText: 'Lihat Atlantic',
+      filterVariety: 'Atlantic',
+    },
+    {
+      id: 3,
+      badge: 'LOGISTIK AMAN & TEPAT WAKTU',
+      title: 'Pengantaran Khusus Langsung ke Titik Lahan',
+      subtitle: 'Armada logistik Kentara menjamin benih tiba segar tanpa rusak diangkut.',
+      bgGradient: 'from-amber-900 via-amber-800 to-emerald-900',
+      actionText: 'Pesan Sekarang',
+      filterVariety: 'all',
+    },
+  ];
+
+  // Auto banner carousel rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % promoBanners.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [promoBanners.length]);
 
   // Extract unique filter options
   const varieties = useMemo(() => {
@@ -117,15 +170,15 @@ export function PetaniCatalogView({
     return ['all', ...Array.from(set)];
   }, [products]);
 
-  // Filtered and Sorted Products List
+  // Filtered and Sorted Marketplace Products
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
         if (!p.is_active) return false;
 
         // Search query
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
+        if (activeSearch.trim()) {
+          const q = activeSearch.toLowerCase();
           const matchName = p.name.toLowerCase().includes(q);
           const matchVariety = p.variety?.toLowerCase().includes(q);
           const matchOrigin = p.origin_location?.toLowerCase().includes(q);
@@ -134,6 +187,12 @@ export function PetaniCatalogView({
             return false;
           }
         }
+
+        // Quick Category Tag
+        if (selectedCategoryTag === 'siap_tanam' && p.sprout_status !== 'siap_tanam') return false;
+        if (selectedCategoryTag === 'g2' && p.seed_class !== 'G2') return false;
+        if (selectedCategoryTag === 'g1' && p.seed_class !== 'G1') return false;
+        if (selectedCategoryTag === 'industri' && !p.name.toLowerCase().includes('atlantic') && !p.variety?.toLowerCase().includes('atlantic')) return false;
 
         // Variety filter
         if (selectedVariety !== 'all' && p.variety !== selectedVariety) {
@@ -161,7 +220,15 @@ export function PetaniCatalogView({
         if (!a.is_featured && b.is_featured) return 1;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [products, searchQuery, selectedVariety, selectedSeedClass, selectedSproutStatus, sortBy]);
+  }, [
+    products,
+    activeSearch,
+    selectedCategoryTag,
+    selectedVariety,
+    selectedSeedClass,
+    selectedSproutStatus,
+    sortBy,
+  ]);
 
   // Cart Helpers
   const addToCart = (product: Product, qtyToAdd = 1) => {
@@ -238,7 +305,6 @@ export function PetaniCatalogView({
 
   const estimatedShipping = useMemo(() => {
     if (cart.length === 0) return 0;
-    // Base shipping Rp 20.000 + Rp 500/kg
     return Math.max(20000, Math.round(cartTotalWeightKg * 500));
   }, [cart.length, cartTotalWeightKg]);
 
@@ -337,156 +403,158 @@ export function PetaniCatalogView({
     }
   };
 
+  const currentBanner = promoBanners[activeBannerIndex];
+
   return (
     <div className="space-y-6">
-      {/* 1. HERO SPOTLIGHT & SEARCH BANNER */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-900 text-white p-6 sm:p-8 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
+      {/* 1. MARKETPLACE SLIDING PROMO HERO BANNER */}
+      <section
+        className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${currentBanner.bgGradient} text-white p-6 sm:p-8 shadow-xl transition-all duration-700`}
+      >
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-72 h-72 bg-black/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-400/30 text-emerald-200 text-xs font-black shadow-xs">
-            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-            <span>Benih Bersertifikat BPSB • Terverifikasi Unggul</span>
+        <div className="relative z-10 max-w-3xl space-y-3 sm:space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/30 border border-white/20 text-white text-[11px] font-black uppercase tracking-wider">
+            <Flame className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+            <span>{currentBanner.badge}</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
-            Katalog Benih Kentang Unggul Bersertifikat
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight">
+            {currentBanner.title}
           </h1>
 
-          <p className="text-xs sm:text-sm text-emerald-100/90 max-w-2xl leading-relaxed">
-            Dapatkan benih kentang unggulan turunan G0, G1, dan G2 dari penangkar resmi Pangalengan, Lembang, dan Dieng. Diantar langsung dengan kurir aman sampai lahan Anda.
+          <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed">
+            {currentBanner.subtitle}
           </p>
 
-          {/* Quick Search Input inside Hero */}
-          <div className="pt-2">
-            <div className="relative flex items-center max-w-xl">
-              <Search className="absolute left-3.5 h-4 w-4 text-zinc-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari varietas (Granola, Atlantic), kelas benih, atau lokasi..."
-                className="w-full pl-10 pr-10 py-3 rounded-2xl bg-white text-zinc-900 placeholder:text-zinc-400 text-xs sm:text-sm font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              />
-              {searchQuery && (
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Button
+              onClick={() => {
+                if (currentBanner.filterVariety !== 'all') {
+                  setSelectedVariety(currentBanner.filterVariety);
+                } else {
+                  setSelectedVariety('all');
+                }
+              }}
+              className="bg-white text-zinc-900 hover:bg-zinc-100 font-black text-xs sm:text-sm rounded-2xl h-10 px-5 shadow-md gap-1.5 cursor-pointer"
+            >
+              <span>{currentBanner.actionText}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center gap-1.5 ml-2">
+              {promoBanners.map((b, idx) => (
                 <button
+                  key={b.id}
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 p-1 rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 transition cursor-pointer"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+                  onClick={() => setActiveBannerIndex(idx)}
+                  className={`h-2 rounded-full transition-all cursor-pointer ${
+                    activeBannerIndex === idx ? 'w-6 bg-white' : 'w-2 bg-white/40'
+                  }`}
+                  aria-label={`Slide ${idx + 1}`}
+                />
+              ))}
             </div>
           </div>
-
-          {/* Guarantee Badges */}
-          <div className="flex flex-wrap items-center gap-4 pt-2 text-[11px] text-emerald-200 font-semibold">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-300" />
-              100% Bebas Penyakit &amp; Nematoda
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Sprout className="h-4 w-4 text-emerald-300" />
-              Daya Tumbuh Unggul &gt;95%
-            </span>
-          </div>
         </div>
       </section>
 
-      {/* 2. FILTER & SORT CONTROLS BAR */}
-      <section className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-3">
-        {/* Variety Quick Filter Pills */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300">
-            <span className="flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-emerald-600" />
-              Pilih Varietas Benih
-            </span>
-            <span className="text-[10px] text-zinc-400 font-normal">
-              {filteredProducts.length} produk ditemukan
-            </span>
-          </div>
+      {/* 2. MARKETPLACE CATEGORY QUICK SHORTCUTS STRIP */}
+      <section className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs">
+        <div className="flex items-center justify-between text-xs font-black text-zinc-700 dark:text-zinc-300 mb-3">
+          <span className="flex items-center gap-1.5">
+            <Layers className="h-4 w-4 text-emerald-600" />
+            Kategori Pilihan Petani
+          </span>
+          <span className="text-[11px] text-zinc-400 font-normal">
+            Menampilkan {filteredProducts.length} benih
+          </span>
+        </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {varieties.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setSelectedVariety(v)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                  selectedVariety === v
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                }`}
-              >
-                {v === 'all' ? '🌱 Semua Varietas' : v}
-              </button>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {[
+            { tag: 'all', label: 'Semua Benih', icon: Sprout, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60' },
+            { tag: 'siap_tanam', label: 'Siap Tanam', icon: Leaf, color: 'text-green-600 bg-green-50 dark:bg-green-950/60' },
+            { tag: 'g2', label: 'Kelas G2 Pokok', icon: Award, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/60' },
+            { tag: 'g1', label: 'Kelas G1 Dasar', icon: ShieldCheck, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/60' },
+            { tag: 'industri', label: 'Atlantic Olahan', icon: Sparkles, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60' },
+            { tag: 'ongkir', label: 'Bebas Ongkir', icon: Truck, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/60' },
+          ].map((cat) => (
+            <button
+              key={cat.tag}
+              type="button"
+              onClick={() => {
+                setSelectedCategoryTag(cat.tag);
+                setSelectedVariety('all');
+              }}
+              className={`p-2.5 rounded-2xl border transition text-center flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                selectedCategoryTag === cat.tag
+                  ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-600/20'
+                  : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300'
+              }`}
+            >
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${cat.color}`}>
+                <cat.icon className="h-4 w-4" />
+              </div>
+              <span className="text-[11px] font-extrabold text-zinc-800 dark:text-zinc-200 leading-tight">
+                {cat.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. MARKETPLACE FILTER & SORT PILLS */}
+      <section className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-zinc-900 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs">
+        {/* Variety Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+          {varieties.map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => {
+                setSelectedVariety(v);
+                setSelectedCategoryTag('all');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                selectedVariety === v
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
+              }`}
+            >
+              {v === 'all' ? '🌾 Semua Varietas' : v}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort & Class Selector */}
+        <div className="flex items-center gap-2 ml-auto">
+          <select
+            value={selectedSeedClass}
+            onChange={(e) => setSelectedSeedClass(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-800 dark:text-zinc-200"
+          >
+            <option value="all">Semua Kelas</option>
+            {seedClasses.filter((c) => c !== 'all').map((c) => (
+              <option key={c} value={c}>Kelas {c}</option>
             ))}
-          </div>
-        </div>
+          </select>
 
-        {/* Secondary Filters: Seed Class, Sprout Status, and Sort */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-          {/* Seed Class */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-              Kelas Benih
-            </label>
-            <select
-              value={selectedSeedClass}
-              onChange={(e) => setSelectedSeedClass(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-800 dark:text-zinc-200"
-            >
-              <option value="all">Semua Kelas Benih</option>
-              {seedClasses
-                .filter((c) => c !== 'all')
-                .map((c) => (
-                  <option key={c} value={c}>
-                    Kelas {c}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Sprout Status */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-              Kesiapan Tunas (Dormansi)
-            </label>
-            <select
-              value={selectedSproutStatus}
-              onChange={(e) => setSelectedSproutStatus(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-800 dark:text-zinc-200"
-            >
-              <option value="all">Semua Kesiapan Tunas</option>
-              <option value="siap_tanam">🌱 Siap Tanam (Tunas Optimum)</option>
-              <option value="pecah_dormansi">✨ Pecah Dormansi (Tunas Muncul)</option>
-              <option value="dormansi">💤 Dormansi (Masa Istirahat)</option>
-            </select>
-          </div>
-
-          {/* Sorting */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-              Urutkan Berdasarkan
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-800 dark:text-zinc-200"
-            >
-              <option value="relevance">Paling Sesuai / Unggulan</option>
-              <option value="price_asc">Harga Terendah</option>
-              <option value="price_desc">Harga Tertinggi</option>
-              <option value="stock_desc">Stok Terbanyak</option>
-            </select>
-          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-800 dark:text-zinc-200"
+          >
+            <option value="relevance">Paling Sesuai</option>
+            <option value="price_asc">Harga Terendah</option>
+            <option value="price_desc">Harga Tertinggi</option>
+            <option value="stock_desc">Stok Terbanyak</option>
+          </select>
         </div>
       </section>
 
-      {/* 3. PRODUCT CATALOG GRID */}
+      {/* 4. MARKETPLACE PRODUCT CARD GRID (SHOPEE / TOKOPEDIA STYLE FOR SEEDS) */}
       <section className="space-y-4">
         {filteredProducts.length === 0 ? (
           <Card className="p-12 text-center rounded-3xl border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 space-y-3">
@@ -494,38 +562,40 @@ export function PetaniCatalogView({
               <Search className="h-7 w-7" />
             </div>
             <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200">
-              Tidak ada benih yang cocok dengan filter
+              Tidak ada benih yang sesuai dengan pencarian
             </h3>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Coba ganti kata kunci pencarian atau ubah pilihan varietas dan kelas benih.
+              Coba gunakan kata kunci lain atau pilih varietas benih yang tersedia.
             </p>
             <Button
               onClick={() => {
-                setSearchQuery('');
+                setInternalSearchQuery('');
                 setSelectedVariety('all');
                 setSelectedSeedClass('all');
                 setSelectedSproutStatus('all');
+                setSelectedCategoryTag('all');
               }}
               variant="outline"
               size="sm"
               className="rounded-xl text-xs font-bold"
             >
-              Reset Semua Filter
+              Reset Filter
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {filteredProducts.map((product) => {
               const isOutOfStock = product.stock <= 0;
               const isReadyToPlant = product.sprout_status === 'siap_tanam';
+              const fakeOriginalPrice = Math.round(product.price * 1.15); // Marketplace strikethrough promo price
 
               return (
                 <Card
                   key={product.id}
-                  className="flex flex-col rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-emerald-500/50 transition duration-200 overflow-hidden group"
+                  className="flex flex-col rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-xs hover:shadow-xl hover:border-emerald-500/50 transition-all duration-200 overflow-hidden group select-none"
                 >
-                  {/* Top Image / Visual Container */}
-                  <div className="relative aspect-4/3 w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                  {/* Square Aspect 1:1 Image Container */}
+                  <div className="relative aspect-square w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden cursor-pointer" onClick={() => openDetailModal(product)}>
                     {product.image_url ? (
                       <Image
                         src={product.image_url}
@@ -535,32 +605,32 @@ export function PetaniCatalogView({
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-600 bg-gradient-to-br from-emerald-500/10 to-teal-500/10">
-                        <Sprout className="h-16 w-16 text-emerald-600/40" />
+                        <Sprout className="h-14 w-14 text-emerald-600/40" />
                         <span className="text-[10px] font-bold text-zinc-400 mt-1">
                           {product.variety}
                         </span>
                       </div>
                     )}
 
-                    {/* Floating Badges */}
-                    <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start">
+                    {/* Marketplace Official Badges Overlay */}
+                    <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
                       {product.cert_number ? (
-                        <Badge className="bg-emerald-600/90 backdrop-blur-xs text-white text-[9px] font-black border-none shadow-xs">
-                          ✓ BPSB Bersertifikat
+                        <Badge className="bg-emerald-600 text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0 border-none shadow-xs">
+                          ✓ BPSB RESMI
                         </Badge>
                       ) : (
-                        <Badge className="bg-zinc-800/80 backdrop-blur-xs text-white text-[9px] font-bold border-none">
-                          Kualitas Teruji
+                        <Badge className="bg-zinc-800 text-white text-[8px] sm:text-[9px] font-bold px-1.5 py-0 border-none">
+                          TERUJI
                         </Badge>
                       )}
-                      <Badge className="bg-blue-600/90 backdrop-blur-xs text-white text-[9px] font-bold border-none">
-                        Kelas {product.seed_class}
+                      <Badge className="bg-blue-600 text-white text-[8px] sm:text-[9px] font-bold px-1.5 py-0 border-none">
+                        G{product.seed_class.replace('G', '')}
                       </Badge>
                     </div>
 
-                    <div className="absolute top-2.5 right-2.5">
+                    <div className="absolute top-2 right-2">
                       <Badge
-                        className={`text-[9px] font-extrabold border-none shadow-xs ${
+                        className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0 border-none shadow-xs ${
                           isReadyToPlant
                             ? 'bg-emerald-500 text-white'
                             : product.sprout_status === 'pecah_dormansi'
@@ -568,102 +638,90 @@ export function PetaniCatalogView({
                             : 'bg-zinc-700 text-white'
                         }`}
                       >
-                        {isReadyToPlant
-                          ? '🌱 Siap Tanam'
-                          : product.sprout_status === 'pecah_dormansi'
-                          ? '✨ Pecah Dormansi'
-                          : '💤 Dormansi'}
+                        {isReadyToPlant ? '🌱 Siap Tanam' : product.sprout_status === 'pecah_dormansi' ? '✨ Pecah Tunas' : '💤 Dormansi'}
                       </Badge>
+                    </div>
+
+                    {/* Strikethrough Discount Tag */}
+                    <div className="absolute bottom-2 left-2">
+                      <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xs">
+                        15% OFF
+                      </span>
                     </div>
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-400">
+                  <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
+                    <div className="space-y-1">
+                      {/* Origin City */}
+                      <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-semibold truncate">
                         <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
                         <span className="truncate">{product.origin_location}</span>
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-black text-zinc-900 dark:text-white line-clamp-2 leading-snug group-hover:text-emerald-600 transition">
+                      {/* Product Name */}
+                      <h3
+                        onClick={() => openDetailModal(product)}
+                        className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white line-clamp-2 leading-snug group-hover:text-emerald-600 transition cursor-pointer"
+                      >
                         {product.name}
                       </h3>
 
-                      {/* Agronomic Quick Bullets */}
-                      <div className="grid grid-cols-2 gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400 pt-1">
-                        {product.elevation_masl && (
-                          <span className="truncate">⛰️ {product.elevation_masl}</span>
-                        )}
-                        {product.harvest_days && (
-                          <span className="truncate">⏱️ {product.harvest_days}</span>
-                        )}
-                        {product.potential_yield && (
-                          <span className="col-span-2 truncate text-emerald-700 dark:text-emerald-400 font-semibold">
-                            🌾 Potensi: {product.potential_yield}
+                      {/* Price Section */}
+                      <div className="pt-0.5">
+                        <span className="text-[10px] text-zinc-400 line-through block leading-none">
+                          Rp {fakeOriginalPrice.toLocaleString('id-ID')}
+                        </span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-sm sm:text-base font-black text-emerald-700 dark:text-emerald-400">
+                            Rp {product.price.toLocaleString('id-ID')}
                           </span>
-                        )}
+                          <span className="text-[10px] text-zinc-400 font-medium">
+                            /{product.unit}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rating & Sales count */}
+                      <div className="flex items-center gap-1 text-[10px] text-zinc-500 pt-0.5">
+                        <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">4.9</span>
+                        <span>•</span>
+                        <span>Terjual 150+ kg</span>
                       </div>
                     </div>
 
-                    {/* Price, Stock & Action Buttons */}
-                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-2.5">
-                      <div className="flex items-baseline justify-between gap-1">
-                        <div>
-                          <span className="text-[10px] text-zinc-400 block font-medium">
-                            Harga Benih
-                          </span>
-                          <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">
-                            Rp {product.price.toLocaleString('id-ID')}
-                            <span className="text-xs font-normal text-zinc-400">
-                              /{product.unit}
-                            </span>
-                          </span>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-[10px] text-zinc-400 block font-medium">
-                            Min. Order: {product.min_order} {product.unit}
-                          </span>
-                          <span
-                            className={`text-xs font-bold ${
-                              isOutOfStock
-                                ? 'text-rose-500'
-                                : product.stock <= 50
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-zinc-600 dark:text-zinc-300'
-                            }`}
-                          >
-                            {isOutOfStock
-                              ? 'Stok Habis'
-                              : `Stok: ${product.stock} ${product.unit}`}
-                          </span>
-                        </div>
+                    {/* Stock & Quick Action Button */}
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-zinc-400">Min. {product.min_order} {product.unit}</span>
+                        <span className={`font-bold ${isOutOfStock ? 'text-rose-500' : 'text-zinc-500'}`}>
+                          {isOutOfStock ? 'Stok Habis' : `Stok: ${product.stock} ${product.unit}`}
+                        </span>
                       </div>
 
-                      {/* Two Action Buttons: Detail & Buy/Add */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <Button
                           onClick={() => openDetailModal(product)}
                           variant="outline"
                           size="sm"
-                          className="w-full rounded-xl text-xs font-bold border-zinc-300 dark:border-zinc-700 h-9"
+                          className="w-full rounded-xl text-[11px] font-bold h-8 px-1"
                         >
-                          <Info className="h-3.5 w-3.5" />
-                          <span>Detail Benih</span>
+                          Detail
                         </Button>
 
                         <Button
                           disabled={isOutOfStock}
                           onClick={() => addToCart(product, product.min_order || 1)}
                           size="sm"
-                          className={`w-full rounded-xl text-xs font-black h-9 shadow-xs gap-1 cursor-pointer ${
+                          className={`w-full rounded-xl text-[11px] font-black h-8 px-1 shadow-xs cursor-pointer ${
                             isOutOfStock
                               ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                           }`}
                         >
-                          <ShoppingBag className="h-3.5 w-3.5" />
-                          <span>{isOutOfStock ? 'Habis' : '+ Keranjang'}</span>
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Beli</span>
                         </Button>
                       </div>
                     </div>
@@ -675,12 +733,12 @@ export function PetaniCatalogView({
         )}
       </section>
 
-      {/* 4. FLOATING BOTTOM CART BAR (MOBILE-FIRST) */}
+      {/* 5. FLOATING BOTTOM CART BAR (MOBILE-FIRST) */}
       {cart.length > 0 && (
         <div className="fixed bottom-4 left-4 right-4 z-40 max-w-xl mx-auto animate-in slide-in-from-bottom-3">
           <div
             onClick={() => setIsCartDrawerOpen(true)}
-            className="p-3.5 sm:p-4 rounded-3xl bg-zinc-900 dark:bg-zinc-800 text-white shadow-2xl border border-zinc-700/80 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-800 transition active:scale-98"
+            className="p-3.5 sm:p-4 rounded-3xl bg-zinc-900 dark:bg-zinc-800 text-white shadow-2xl border border-zinc-700 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-800 transition active:scale-98"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-2xl bg-emerald-600 flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
@@ -702,7 +760,7 @@ export function PetaniCatalogView({
                 e.stopPropagation();
                 setIsCartDrawerOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm rounded-2xl h-10 px-4 gap-1.5 shrink-0 shadow-md"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm rounded-2xl h-10 px-4 gap-1.5 shrink-0 shadow-md cursor-pointer"
             >
               <span>Lihat Keranjang</span>
               <ArrowRight className="h-4 w-4" />
@@ -711,7 +769,7 @@ export function PetaniCatalogView({
         </div>
       )}
 
-      {/* 5. PRODUCT DETAIL AGRONOMIC MODAL */}
+      {/* 6. PRODUCT DETAIL AGRONOMIC MODAL */}
       <Dialog
         open={!!selectedDetailProduct}
         onOpenChange={(open) => !open && setSelectedDetailProduct(null)}
@@ -810,14 +868,6 @@ export function PetaniCatalogView({
                 </div>
               </div>
 
-              {/* Description */}
-              {selectedDetailProduct.description && (
-                <div className="text-xs text-zinc-600 dark:text-zinc-300 space-y-1">
-                  <span className="font-bold text-zinc-900 dark:text-white block">Deskripsi Benih:</span>
-                  <p className="leading-relaxed">{selectedDetailProduct.description}</p>
-                </div>
-              )}
-
               {/* Quantity Picker & Price Breakdown */}
               <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 flex items-center justify-between">
                 <div>
@@ -890,13 +940,13 @@ export function PetaniCatalogView({
         )}
       </Dialog>
 
-      {/* 6. SHOPPING CART DRAWER / MODAL */}
+      {/* 7. SHOPPING CART DRAWER / MODAL */}
       <Dialog open={isCartDrawerOpen} onOpenChange={setIsCartDrawerOpen}>
         <DialogContent className="max-w-md rounded-3xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2">
               <ShoppingBag className="h-5 w-5 text-emerald-600" />
-              <span>Keranjang Benih Anda</span>
+              <span>Keranjang Belanja Benih</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-zinc-500">
               Periksa varietas benih dan jumlah pesanan sebelum checkout.
@@ -939,7 +989,7 @@ export function PetaniCatalogView({
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.product.id, -1)}
-                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -949,7 +999,7 @@ export function PetaniCatalogView({
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.product.id, 1)}
-                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
@@ -958,7 +1008,7 @@ export function PetaniCatalogView({
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.product.id)}
-                        className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1010,7 +1060,7 @@ export function PetaniCatalogView({
         </DialogContent>
       </Dialog>
 
-      {/* 7. CHECKOUT & PAYMENT DIALOG */}
+      {/* 8. CHECKOUT & PAYMENT DIALOG */}
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
         <DialogContent className="max-w-lg rounded-3xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1202,7 +1252,7 @@ export function PetaniCatalogView({
         </DialogContent>
       </Dialog>
 
-      {/* 8. ORDER SUCCESS MODAL */}
+      {/* 9. ORDER SUCCESS MODAL */}
       <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
         <DialogContent className="max-w-md rounded-3xl p-6 text-center space-y-4 border-2 border-emerald-500/30">
           <DialogHeader className="text-center">

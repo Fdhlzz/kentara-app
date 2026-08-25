@@ -87,14 +87,25 @@ export async function getUserNotificationsAction(
       .order('created_at', { ascending: false })
       .limit(30);
 
-    if (userId) {
-      if (role) {
-        query = query.or(`user_id.eq.${userId},recipient_role.eq.${role},recipient_role.eq.all`);
+    if (role === 'petani') {
+      if (userId) {
+        // Customer ONLY sees notifications addressed specifically to their user_id OR general broadcast announcements where user_id IS NULL
+        query = query.or(`user_id.eq.${userId},and(user_id.is.null,recipient_role.in.(petani,all))`);
       } else {
-        query = query.or(`user_id.eq.${userId},recipient_role.eq.all`);
+        query = query.is('user_id', null).in('recipient_role', ['petani', 'all']);
       }
-    } else if (role) {
-      query = query.or(`recipient_role.eq.${role},recipient_role.eq.all`);
+    } else if (role === 'kurir') {
+      if (userId) {
+        // Courier sees tasks specifically assigned to them OR general unassigned courier broadcasts
+        query = query.or(`user_id.eq.${userId},and(user_id.is.null,recipient_role.in.(kurir,all))`);
+      } else {
+        query = query.or('recipient_role.eq.kurir,recipient_role.eq.all');
+      }
+    } else if (role === 'admin') {
+      // Admin sees all admin notifications and broadcasts
+      query = query.or('recipient_role.eq.admin,recipient_role.eq.all');
+    } else if (userId) {
+      query = query.or(`user_id.eq.${userId},and(user_id.is.null,recipient_role.eq.all)`);
     }
 
     const { data, error } = await query;

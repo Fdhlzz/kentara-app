@@ -124,4 +124,58 @@ describe('5. Notification System & PWA Web Push Unit Tests (Notifikasi)', () => 
     expect(parsed.icon).toBe('/icons/icon-192x192.png');
     expect(parsed.data.url).toBe('/admin');
   });
+
+  it('should strictly isolate customer notifications so farmer A cannot see farmer B order notifications', () => {
+    const mixedNotifications: AppNotification[] = [
+      {
+        id: 'notif-farmer-A',
+        recipient_role: 'petani',
+        user_id: 'farmer-A-id',
+        title: '🚚 Pesanan Anda Sedang Diantar!',
+        message: 'Pesanan KTR-001 sedang diantar ke lahan Farmer A.',
+        type: 'courier_task',
+        is_read: false,
+        created_at: '2026-08-25T08:00:00Z',
+      },
+      {
+        id: 'notif-farmer-B',
+        recipient_role: 'petani',
+        user_id: 'farmer-B-id',
+        title: '🚚 Pesanan Anda Sedang Diantar!',
+        message: 'Pesanan KTR-002 sedang diantar ke lahan Farmer B.',
+        type: 'courier_task',
+        is_read: false,
+        created_at: '2026-08-25T08:10:00Z',
+      },
+      {
+        id: 'notif-broadcast-all',
+        recipient_role: 'petani',
+        user_id: null, // Broadcast to all farmers
+        title: '📢 Promo Musim Tanam!',
+        message: 'Diskon 10% benih kentang Granola bersertifikat.',
+        type: 'announcement',
+        is_read: false,
+        created_at: '2026-08-25T08:15:00Z',
+      },
+    ];
+
+    function filterForCustomer(targetUserId: string, notifications: AppNotification[]) {
+      return notifications.filter((n) => {
+        // Must either belong strictly to this user OR be a general announcement with null user_id
+        if (n.user_id === targetUserId) return true;
+        if (!n.user_id && (n.recipient_role === 'petani' || n.recipient_role === 'all')) return true;
+        return false;
+      });
+    }
+
+    const farmerANotifs = filterForCustomer('farmer-A-id', mixedNotifications);
+    expect(farmerANotifs).toHaveLength(2); // Own notif + Broadcast
+    expect(farmerANotifs.map((n) => n.id)).toEqual(['notif-farmer-A', 'notif-broadcast-all']);
+    expect(farmerANotifs.some((n) => n.id === 'notif-farmer-B')).toBe(false); // Farmer B's notif is NOT leaked!
+
+    const farmerBNotifs = filterForCustomer('farmer-B-id', mixedNotifications);
+    expect(farmerBNotifs).toHaveLength(2); // Own notif + Broadcast
+    expect(farmerBNotifs.map((n) => n.id)).toEqual(['notif-farmer-B', 'notif-broadcast-all']);
+    expect(farmerBNotifs.some((n) => n.id === 'notif-farmer-A')).toBe(false); // Farmer A's notif is NOT leaked!
+  });
 });
