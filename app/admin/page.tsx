@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
 import { getAdminDashboardStats, getCouriersList } from '@/lib/admin/courier-actions';
 import { getAdminProductStats, getAdminProductsList } from '@/lib/admin/product-actions';
@@ -87,13 +88,14 @@ export default async function AdminPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <NotificationCenter role="admin" userId={profile.id} />
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-zinc-600 hover:text-emerald-700 dark:text-zinc-400 transition"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Lihat Marketplace</span>
+              <span className="hidden sm:inline">Lihat Marketplace</span>
             </Link>
           </div>
         </div>

@@ -80,10 +80,75 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Network error, cache was already returned if available
+        // Network error
       });
 
       return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+// Push Notification Event Listener (Web Push)
+self.addEventListener('push', (event) => {
+  let notificationData = {
+    title: 'Kentara - Notifikasi Pesanan Benih',
+    body: 'Ada pembaruan status transaksi benih pertanian Anda.',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    data: { url: '/' },
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      notificationData = {
+        title: parsed.title || notificationData.title,
+        body: parsed.message || parsed.body || notificationData.body,
+        icon: parsed.icon || '/icons/icon-192x192.png',
+        badge: parsed.badge || '/icons/icon-192x192.png',
+        data: parsed.data || { url: parsed.url || '/' },
+      };
+    } catch {
+      notificationData.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
+    vibrate: [200, 100, 200],
+    data: notificationData.data,
+    actions: [
+      {
+        action: 'open',
+        title: 'Buka Aplikasi',
+      },
+    ],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, options)
+  );
+});
+
+// Notification Click Listener
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
     })
   );
 });

@@ -20,6 +20,7 @@ import { getCurrentUserProfile } from '@/lib/auth/actions';
 import { createClient } from '@/lib/supabase/server';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { DeliveryTrackingMap } from '@/components/maps/delivery-tracking-map';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,8 @@ export default async function PetaniPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <NotificationCenter role="petani" userId={profile.id} />
             <Link
               href="/#katalog-benih"
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl shadow-xs transition"

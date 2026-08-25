@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { sendNotificationAction } from '@/lib/notifications/notification-actions';
 import type { Payment, AdminPaymentStats, ConfirmCashPaymentResult } from '@/types/payment';
 
 /**
@@ -242,6 +243,27 @@ export async function confirmCashPaymentAction(
         }
       }
     }
+
+    // 5. Send Notification
+    const { data: orderObj } = await supabase
+      .from('orders')
+      .select('order_code, user_id')
+      .eq('id', payment.order_id)
+      .single();
+
+    await sendNotificationAction({
+      title: '💵 Pelunasan Tunai Dikonfirmasi!',
+      message: `Pembayaran tunai (COD) sebesar Rp ${payment.amount.toLocaleString('id-ID')} untuk pesanan ${orderObj?.order_code || ''} telah sukses diterima.`,
+      type: 'payment_success',
+      recipient_role: 'all',
+      user_id: orderObj?.user_id || null,
+      order_id: payment.order_id,
+      data: {
+        order_code: orderObj?.order_code,
+        amount: payment.amount,
+        url: '/admin',
+      },
+    });
 
     revalidatePath('/admin');
     revalidatePath('/admin/payments');

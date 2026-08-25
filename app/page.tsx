@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { PotatoSeedCatalog } from '@/components/marketplace/potato-seed-catalog';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import { getAdminProductsList } from '@/lib/admin/product-actions';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
 
@@ -49,6 +50,7 @@ export default async function Home() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <NotificationCenter role={profile?.role || 'all'} userId={profile?.id} />
             {profile ? (
               <Link
                 href={`/${profile.role}`}

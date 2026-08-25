@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createSnapTransaction } from '@/lib/midtrans/server';
+import { sendNotificationAction } from '@/lib/notifications/notification-actions';
 import type {
   Order,
   AdminOrderStats,
@@ -210,6 +211,23 @@ export async function createOrderAndGetSnapAction(
       }
     }
 
+    // 5. Send Notification to Admin & Buyer
+    await sendNotificationAction({
+      title: '📦 Pesanan Benih Baru Masuk!',
+      message: `Pesanan ${order_code} oleh ${customer_name} (${sanitizedItems.length} varietas) senilai Rp ${total_amount.toLocaleString('id-ID')} siap diproses.`,
+      type: 'new_order',
+      recipient_role: 'admin',
+      user_id: user?.id || null,
+      order_id: orderData.id,
+      data: {
+        order_code,
+        customer_name,
+        total_amount,
+        payment_method_type: isCash ? 'cash' : 'gateway',
+        url: '/admin',
+      },
+    });
+
     revalidatePath('/admin');
     revalidatePath('/admin/orders');
     revalidatePath('/admin/payments');
@@ -314,6 +332,20 @@ export async function markOrderPaymentSuccessAction(
         }
       }
     }
+
+    // 4. Send Payment Success Notification
+    await sendNotificationAction({
+      title: '✅ Pembayaran Lunas & Pesanan Diproses!',
+      message: `Pembayaran pesanan ${orderCode} telah berhasil dikonfirmasi. Stok benih telah dikurangi di sistem.`,
+      type: 'payment_success',
+      recipient_role: 'all',
+      order_id: order.id,
+      data: {
+        order_code: orderCode,
+        payment_method: paymentDetails?.payment_method || 'midtrans',
+        url: '/admin',
+      },
+    });
 
     revalidatePath('/admin');
     revalidatePath('/admin/orders');
@@ -475,6 +507,30 @@ export async function assignCourierToOrderAction(
       return { success: false, error: updateError.message };
     }
 
+    // Fetch order details for notification
+    const { data: orderObj } = await supabase
+      .from('orders')
+      .select('order_code, customer_name, customer_phone, shipping_address, shipping_city')
+      .eq('id', orderId)
+      .single();
+
+    // Send Notification to Courier
+    await sendNotificationAction({
+      title: '🚚 Tugas Pengantaran Benih Baru!',
+      message: `Anda ditugaskan mengantar pesanan ${orderObj?.order_code || ''} ke ${orderObj?.customer_name || 'Pembeli'} (${orderObj?.shipping_city || orderObj?.shipping_address || ''}).`,
+      type: 'courier_task',
+      recipient_role: 'kurir',
+      user_id: courierId,
+      order_id: orderId,
+      data: {
+        order_code: orderObj?.order_code,
+        customer_name: orderObj?.customer_name,
+        customer_phone: orderObj?.customer_phone,
+        shipping_address: orderObj?.shipping_address,
+        url: '/kurir',
+      },
+    });
+
     revalidatePath('/admin');
     revalidatePath('/admin/orders');
     revalidatePath('/kurir');
@@ -504,6 +560,28 @@ export async function updateOrderStatusAction(
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // Fetch order info
+    const { data: orderObj } = await supabase
+      .from('orders')
+      .select('order_code, customer_name, user_id')
+      .eq('id', orderId)
+      .single();
+
+    if (newStatus === 'selesai') {
+      await sendNotificationAction({
+        title: '🎉 Pesanan Benih Berhasil Diterima!',
+        message: `Pesanan ${orderObj?.order_code || ''} telah sukses diantarkan dan diterima di lahan pembeli.`,
+        type: 'order_delivered',
+        recipient_role: 'all',
+        user_id: orderObj?.user_id || null,
+        order_id: orderId,
+        data: {
+          order_code: orderObj?.order_code,
+          url: '/petani',
+        },
+      });
     }
 
     revalidatePath('/admin');
