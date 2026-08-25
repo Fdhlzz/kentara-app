@@ -583,14 +583,19 @@ export function OrderManager({
                     <span>Detail</span>
                   </Button>
 
-                  <Button
-                    onClick={() => openAssignModal(order)}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl h-8 px-2.5 gap-1 shadow-xs"
-                  >
-                    <Truck className="h-3.5 w-3.5" />
-                    <span>{order.courier_id ? 'Ganti Kurir' : 'Tugaskan Kurir'}</span>
-                  </Button>
+                  {/* Tugaskan / Ganti Kurir: Hanya muncul jika pesanan belum diproses kirim atau selesai */}
+                  {order.order_status !== 'dikirim' &&
+                    order.order_status !== 'selesai' &&
+                    order.order_status !== 'dibatalkan' && (
+                      <Button
+                        onClick={() => openAssignModal(order)}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl h-8 px-2.5 gap-1 shadow-xs"
+                      >
+                        <Truck className="h-3.5 w-3.5" />
+                        <span>{order.courier_id ? 'Ganti Kurir' : 'Tugaskan Kurir'}</span>
+                      </Button>
+                    )}
                 </div>
               </div>
             </Card>
@@ -666,13 +671,17 @@ export function OrderManager({
                       >
                         Detail
                       </Button>
-                      <Button
-                        onClick={() => openAssignModal(order)}
-                        size="sm"
-                        className="h-8 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
-                      >
-                        Kurir
-                      </Button>
+                      {order.order_status !== 'dikirim' &&
+                        order.order_status !== 'selesai' &&
+                        order.order_status !== 'dibatalkan' && (
+                          <Button
+                            onClick={() => openAssignModal(order)}
+                            size="sm"
+                            className="h-8 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                          >
+                            Kurir
+                          </Button>
+                        )}
                     </div>
                   </td>
                 </tr>

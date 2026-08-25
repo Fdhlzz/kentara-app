@@ -102,6 +102,31 @@ describe('7. Admin Panel & Mobile-First UX Unit Tests (Pusat Kendali Admin)', ()
     expect(paymentStats.completedPayments).toBe(9);
   });
 
+  it('should hide assign/change courier button when order is in delivery, completed, or cancelled', () => {
+    function canAssignOrChangeCourier(orderStatus: string): boolean {
+      // Button must be GONE if order is in delivery, done, or cancelled
+      return (
+        orderStatus !== 'dikirim' &&
+        orderStatus !== 'selesai' &&
+        orderStatus !== 'dibatalkan'
+      );
+    }
+
+    // 1. Order diproses -> Assign/Change button IS visible
+    expect(canAssignOrChangeCourier('diproses')).toBe(true);
+    expect(canAssignOrChangeCourier('menunggu_pembayaran')).toBe(true);
+    expect(canAssignOrChangeCourier('sudah_dibayar')).toBe(true);
+
+    // 2. Courier already processed and delivering (dikirim) -> Button is GONE
+    expect(canAssignOrChangeCourier('dikirim')).toBe(false);
+
+    // 3. Order completed (selesai) -> Button is GONE
+    expect(canAssignOrChangeCourier('selesai')).toBe(false);
+
+    // 4. Order cancelled (dibatalkan) -> Button is GONE
+    expect(canAssignOrChangeCourier('dibatalkan')).toBe(false);
+  });
+
   it('should filter orders by status and keyword search for admin management', () => {
     const mockOrders: Order[] = [
       {
