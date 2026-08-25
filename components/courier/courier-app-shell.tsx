@@ -40,10 +40,15 @@ export function CourierAppShell({ profile, orders = [] }: CourierAppShellProps) 
   const [selectedTaskOrder, setSelectedTaskOrder] = useState<Order | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
-  // Active / in-progress tasks
-  const activeTasks = orders.filter(
-    (o) => o.order_status === 'diproses' || o.order_status === 'dikirim'
-  );
+  // Active / in-progress tasks: in-process delivery ('dikirim') is always sorted to the very top
+  const activeTasks = orders
+    .filter((o) => o.order_status === 'diproses' || o.order_status === 'dikirim')
+    .sort((a, b) => {
+      // 'dikirim' always prioritized at index 0
+      if (a.order_status === 'dikirim' && b.order_status !== 'dikirim') return -1;
+      if (b.order_status === 'dikirim' && a.order_status !== 'dikirim') return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   const completedTasks = orders.filter((o) => o.order_status === 'selesai');
 
   // Single active delivery lock: when one delivery is in progress ('dikirim'), lock all other tasks

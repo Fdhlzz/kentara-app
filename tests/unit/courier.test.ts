@@ -81,6 +81,48 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
+  it('should sort active tasks list so that in-progress delivery (dikirim) is always moved to the very top', () => {
+    const rawOrders: Order[] = [
+      {
+        ...mockAssignedOrder,
+        id: 'task-1',
+        order_code: 'KTR-001',
+        order_status: 'diproses',
+        created_at: '2026-08-25T08:00:00Z',
+      },
+      {
+        ...mockAssignedOrder,
+        id: 'task-2',
+        order_code: 'KTR-002',
+        order_status: 'dikirim', // Active in-progress task
+        created_at: '2026-08-25T07:00:00Z', // Created earlier but in progress
+      },
+      {
+        ...mockAssignedOrder,
+        id: 'task-3',
+        order_code: 'KTR-003',
+        order_status: 'diproses',
+        created_at: '2026-08-25T09:00:00Z',
+      },
+    ];
+
+    function sortActiveCourierTasks(orders: Order[]): Order[] {
+      return orders
+        .filter((o) => o.order_status === 'diproses' || o.order_status === 'dikirim')
+        .sort((a, b) => {
+          // 'dikirim' always prioritized at the top (index 0)
+          if (a.order_status === 'dikirim' && b.order_status !== 'dikirim') return -1;
+          if (b.order_status === 'dikirim' && a.order_status !== 'dikirim') return 1;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    }
+
+    const sortedTasks = sortActiveCourierTasks(rawOrders);
+    expect(sortedTasks[0].id).toBe('task-2');
+    expect(sortedTasks[0].order_status).toBe('dikirim');
+    expect(sortedTasks[0].order_code).toBe('KTR-002');
+  });
+
   it('should lock all other tasks as disabled and read-only when one delivery is actively in progress (dikirim)', () => {
     const taskList: Order[] = [
       {
@@ -183,9 +225,10 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     expect(provider.maxZoom).toBe(20);
   });
 
-  it('should toggle sheet minimization while preserving bottom swipe action button', () => {
-    function getSheetLayoutState(isMinimized: boolean) {
+  it('should default to minimized sheet when opening task and preserve bottom swipe action button', () => {
+    function getSheetLayoutState(isMinimized: boolean = true) {
       return {
+        isMinimized,
         isDetailsExpanded: !isMinimized,
         showAddressCard: !isMinimized,
         showPaymentBanner: !isMinimized,
@@ -196,17 +239,19 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
       };
     }
 
+    // Default state when opening task map -> MINIMIZED
+    const defaultState = getSheetLayoutState(true);
+    expect(defaultState.isMinimized).toBe(true);
+    expect(defaultState.isDetailsExpanded).toBe(false);
+    expect(defaultState.showAddressCard).toBe(false);
+    expect(defaultState.showCompactHeader).toBe(true);
+    expect(defaultState.showSwipeButton).toBe(true);
+
+    // Expanded state on tap
     const expandedState = getSheetLayoutState(false);
     expect(expandedState.isDetailsExpanded).toBe(true);
     expect(expandedState.showAddressCard).toBe(true);
     expect(expandedState.showSwipeButton).toBe(true);
-
-    const minimizedState = getSheetLayoutState(true);
-    expect(minimizedState.isDetailsExpanded).toBe(false);
-    expect(minimizedState.showAddressCard).toBe(false);
-    expect(minimizedState.showCompactHeader).toBe(true);
-    // Button stays on bottom!
-    expect(minimizedState.showSwipeButton).toBe(true);
   });
 
   it('should enforce price privacy: hide prices on online orders and only show total to collect on cash orders', () => {

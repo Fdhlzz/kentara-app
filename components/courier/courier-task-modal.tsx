@@ -97,8 +97,8 @@ export function CourierTaskModal({
   const [currentOrderStatus, setCurrentOrderStatus] = useState<string>(order?.order_status || 'diproses');
   const [isSimulatedArrival, setIsSimulatedArrival] = useState(false);
 
-  // Minimizable Bottom Sheet State (Collapsible to clear map clutter)
-  const [isSheetMinimized, setIsSheetMinimized] = useState(false);
+  // Minimizable Bottom Sheet State (Default to MINIMIZED for full-screen map view)
+  const [isSheetMinimized, setIsSheetMinimized] = useState(true);
 
   // Success Celebration & Redirect Modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -110,7 +110,7 @@ export function CourierTaskModal({
       setCurrentOrderStatus(order.order_status);
       setIsSimulatedArrival(false);
       setIsSuccessModalOpen(false);
-      setIsSheetMinimized(false);
+      setIsSheetMinimized(true);
     }
   }, [order?.id]);
 
