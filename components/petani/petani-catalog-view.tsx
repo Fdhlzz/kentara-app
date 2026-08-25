@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -21,7 +21,6 @@ import {
   Award,
   Leaf,
   Check,
-  X,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { ProductImage } from '@/components/petani/product-image';
+import { useCart } from '@/lib/cart/cart-context';
 import { useMidtransSnap } from '@/hooks/use-midtrans-snap';
 import {
   createOrderAndGetSnapAction,
@@ -44,30 +44,33 @@ import type { Product } from '@/types/product';
 import type { UserProfile } from '@/types/auth';
 import type { CreateOrderItemInput } from '@/types/order';
 
-export interface CartItem {
-  product: Product;
-  quantity: number;
-}
-
 interface PetaniCatalogViewProps {
   products: Product[];
   currentUser: UserProfile;
-  cartCount: number;
-  onCartCountChange: (count: number) => void;
-  isCartDrawerOpen: boolean;
-  setIsCartDrawerOpen: (open: boolean) => void;
   externalSearchQuery?: string;
 }
 
 export function PetaniCatalogView({
   products,
   currentUser,
-  cartCount,
-  onCartCountChange,
-  isCartDrawerOpen,
-  setIsCartDrawerOpen,
   externalSearchQuery = '',
 }: PetaniCatalogViewProps) {
+  // Use global Cart Hook backed by Supabase database & guest localStorage
+  const {
+    items: cart,
+    isCartOpen,
+    setIsCartOpen,
+    addToCart,
+    updateQty,
+    removeFromCart,
+    clearCart,
+    getItemQty,
+    subtotal: cartSubtotal,
+    totalWeightKg: cartTotalWeightKg,
+    estimatedShipping,
+    grandTotal,
+  } = useCart();
+
   // Search & Filter States
   const [internalSearchQuery, setInternalSearchQuery] = useState('');
   const [selectedVariety, setSelectedVariety] = useState<string>('all');
@@ -75,8 +78,7 @@ export function PetaniCatalogView({
   const [selectedSproutStatus, setSelectedSproutStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'relevance' | 'price_asc' | 'price_desc' | 'stock_desc'>('relevance');
 
-  // Cart & Modal States
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Checkout Modal States
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [completedOrderCode, setCompletedOrderCode] = useState('');
@@ -95,12 +97,6 @@ export function PetaniCatalogView({
 
   // Combine external & internal search query
   const activeSearch = externalSearchQuery || internalSearchQuery;
-
-  // Sync cart count with parent navbar
-  useEffect(() => {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    onCartCountChange(totalItems);
-  }, [cart, onCartCountChange]);
 
   // Extract unique real varieties & classes from products
   const varieties = useMemo(() => {
@@ -165,81 +161,6 @@ export function PetaniCatalogView({
     sortBy,
   ]);
 
-  // Cart Helpers
-  const addToCart = (product: Product, qtyToAdd?: number) => {
-    if (product.stock <= 0) {
-      toast.error('Stok produk ini sedang habis.');
-      return;
-    }
-
-    const defaultQty = qtyToAdd || product.min_order || 1;
-
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
-        const newQty = Math.min(product.stock, existing.quantity + defaultQty);
-        return prev.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: newQty } : item
-        );
-      }
-      return [...prev, { product, quantity: Math.min(product.stock, defaultQty) }];
-    });
-
-    toast.success(`${product.name} dimasukkan ke keranjang`, {
-      description: `+${defaultQty} ${product.unit} berhasil ditambahkan.`,
-      action: {
-        label: 'Lihat Keranjang',
-        onClick: () => setIsCartDrawerOpen(true),
-      },
-    });
-  };
-
-  const updateCartQty = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id !== productId) return item;
-          const minQty = item.product.min_order || 1;
-          const newQty = item.quantity + delta;
-
-          if (newQty < minQty && delta < 0) {
-            // Remove if reduced below min_order
-            return null;
-          }
-          if (newQty > item.product.stock) {
-            toast.warning(`Maksimal stok tersedia: ${item.product.stock} ${item.product.unit}`);
-            return item;
-          }
-          return { ...item, quantity: newQty };
-        })
-        .filter(Boolean) as CartItem[]
-    );
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
-    toast.info('Item dihapus dari keranjang.');
-  };
-
-  // Cart Calculations
-  const cartSubtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  }, [cart]);
-
-  const cartTotalWeightKg = useMemo(() => {
-    return cart.reduce(
-      (sum, item) => sum + (item.product.weight_per_unit || 1) * item.quantity,
-      0
-    );
-  }, [cart]);
-
-  const estimatedShipping = useMemo(() => {
-    if (cart.length === 0) return 0;
-    return Math.max(20000, Math.round(cartTotalWeightKg * 500));
-  }, [cart.length, cartTotalWeightKg]);
-
-  const grandTotal = cartSubtotal + estimatedShipping;
-
   // Handle Checkout Order Submission
   const handleProceedCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,15 +221,15 @@ export function PetaniCatalogView({
         openSnapPopup(res.snapToken, {
           onSuccess: async () => {
             await markOrderPaymentSuccessAction(createdOrder.id);
-            setCart([]);
+            await clearCart();
             setIsCheckoutOpen(false);
-            setIsCartDrawerOpen(false);
+            setIsCartOpen(false);
             setIsSuccessOpen(true);
           },
           onPending: () => {
-            setCart([]);
+            clearCart();
             setIsCheckoutOpen(false);
-            setIsCartDrawerOpen(false);
+            setIsCartOpen(false);
             setIsSuccessOpen(true);
           },
           onError: () => {
@@ -320,9 +241,9 @@ export function PetaniCatalogView({
         });
       } else {
         // CASH ON DELIVERY (COD)
-        setCart([]);
+        await clearCart();
         setIsCheckoutOpen(false);
-        setIsCartDrawerOpen(false);
+        setIsCartOpen(false);
         setIsSuccessOpen(true);
       }
     } catch (err: any) {
@@ -426,8 +347,7 @@ export function PetaniCatalogView({
             {filteredProducts.map((product) => {
               const isOutOfStock = product.stock <= 0;
               const isReadyToPlant = product.sprout_status === 'siap_tanam';
-              const inCartItem = cart.find((item) => item.product.id === product.id);
-              const inCartQty = inCartItem ? inCartItem.quantity : 0;
+              const inCartQty = getItemQty(product.id);
 
               return (
                 <div
@@ -513,14 +433,15 @@ export function PetaniCatalogView({
                       </div>
                     </Link>
 
-                    {/* IMPROVED HIGH-UX FULL-WIDTH BELI BUTTON */}
+                    {/* ROCK-SOLID FULL-WIDTH BELI BUTTON (CONNECTED TO CART HOOK) */}
                     <div className="pt-1">
                       <Button
+                        type="button"
                         disabled={isOutOfStock}
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          addToCart(product, product.min_order || 1);
+                          await addToCart(product, product.min_order || 1);
                         }}
                         className={`w-full rounded-xl sm:rounded-2xl text-xs font-black h-10 sm:h-11 shadow-sm cursor-pointer transition active:scale-[0.98] flex items-center justify-center gap-1.5 ${
                           isOutOfStock
@@ -557,7 +478,7 @@ export function PetaniCatalogView({
       {cart.length > 0 && (
         <div className="fixed bottom-3 left-3 right-3 z-40 max-w-lg mx-auto animate-in slide-in-from-bottom-2">
           <div
-            onClick={() => setIsCartDrawerOpen(true)}
+            onClick={() => setIsCartOpen(true)}
             className="p-3 sm:p-3.5 rounded-2xl bg-zinc-900/95 dark:bg-zinc-800/95 backdrop-blur-md text-white shadow-2xl border border-zinc-700 flex items-center justify-between gap-3 cursor-pointer active:scale-98 transition"
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -579,7 +500,7 @@ export function PetaniCatalogView({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsCartDrawerOpen(true);
+                setIsCartOpen(true);
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl h-9 px-3.5 gap-1 shrink-0 shadow-md cursor-pointer"
             >
@@ -591,7 +512,7 @@ export function PetaniCatalogView({
       )}
 
       {/* 4. REDESIGNED ULTRA MOBILE-FRIENDLY SHOPPING CART BOTTOM SHEET */}
-      <Dialog open={isCartDrawerOpen} onOpenChange={setIsCartDrawerOpen}>
+      <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
         <DialogContent className="max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-0 max-h-[92vh] flex flex-col overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl">
           {/* Top Drag Handle for Mobile */}
           <div className="pt-2.5 pb-1 sm:hidden">
@@ -617,10 +538,7 @@ export function PetaniCatalogView({
             {cart.length > 0 && (
               <button
                 type="button"
-                onClick={() => {
-                  setCart([]);
-                  toast.info('Keranjang belanja telah dikosongkan.');
-                }}
+                onClick={clearCart}
                 className="text-xs font-bold text-rose-500 hover:text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
               >
                 Kosongkan
@@ -643,7 +561,7 @@ export function PetaniCatalogView({
                 </p>
               </div>
               <Button
-                onClick={() => setIsCartDrawerOpen(false)}
+                onClick={() => setIsCartOpen(false)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black h-10 px-5 shadow-sm"
               >
                 Pilih Benih Sekarang
@@ -691,7 +609,7 @@ export function PetaniCatalogView({
                       <div className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 p-0.5 shadow-2xs">
                         <button
                           type="button"
-                          onClick={() => updateCartQty(item.product.id, -5)}
+                          onClick={() => updateQty(item.product.id, -5)}
                           className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 active:scale-90 transition cursor-pointer"
                           aria-label="Kurangi Jumlah"
                         >
@@ -702,7 +620,7 @@ export function PetaniCatalogView({
                         </span>
                         <button
                           type="button"
-                          onClick={() => updateCartQty(item.product.id, 5)}
+                          onClick={() => updateQty(item.product.id, 5)}
                           className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 active:scale-90 transition cursor-pointer"
                           aria-label="Tambah Jumlah"
                         >
@@ -764,7 +682,7 @@ export function PetaniCatalogView({
               <Button
                 type="button"
                 onClick={() => {
-                  setIsCartDrawerOpen(false);
+                  setIsCartOpen(false);
                   setIsCheckoutOpen(true);
                 }}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-13 shadow-xl gap-2 cursor-pointer active:scale-[0.99] transition"

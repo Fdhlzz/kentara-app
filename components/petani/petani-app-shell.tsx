@@ -22,19 +22,29 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationCenter } from '@/components/notifications/notification-center';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { PetaniCatalogView } from '@/components/petani/petani-catalog-view';
+import { CartProvider, useCart } from '@/lib/cart/cart-context';
 import type { Product } from '@/types/product';
 import type { UserProfile } from '@/types/auth';
 import type { Order } from '@/types/order';
+import type { CartItem } from '@/types/cart';
 
 interface PetaniAppShellProps {
   profile: UserProfile;
   products: Product[];
   orders?: Order[];
+  initialCartItems?: CartItem[];
 }
 
-export function PetaniAppShell({ profile, products = [], orders = [] }: PetaniAppShellProps) {
-  const [cartCount, setCartCount] = useState(0);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+function PetaniAppShellInner({
+  profile,
+  products,
+  orders,
+}: {
+  profile: UserProfile;
+  products: Product[];
+  orders: Order[];
+}) {
+  const { totalCount, isCartOpen, setIsCartOpen } = useCart();
   const [globalSearch, setGlobalSearch] = useState('');
 
   return (
@@ -95,9 +105,9 @@ export function PetaniAppShell({ profile, products = [], orders = [] }: PetaniAp
               aria-label="Keranjang Belanja"
             >
               <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
-              {cartCount > 0 && (
+              {totalCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4.5 min-w-[18px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-bounce">
-                  {cartCount}
+                  {totalCount}
                 </span>
               )}
             </button>
@@ -129,10 +139,6 @@ export function PetaniAppShell({ profile, products = [], orders = [] }: PetaniAp
         <PetaniCatalogView
           products={products}
           currentUser={profile}
-          cartCount={cartCount}
-          onCartCountChange={setCartCount}
-          isCartDrawerOpen={isCartOpen}
-          setIsCartDrawerOpen={setIsCartOpen}
           externalSearchQuery={globalSearch}
         />
       </main>
@@ -150,5 +156,22 @@ export function PetaniAppShell({ profile, products = [], orders = [] }: PetaniAp
         </div>
       </footer>
     </div>
+  );
+}
+
+export function PetaniAppShell({
+  profile,
+  products = [],
+  orders = [],
+  initialCartItems = [],
+}: PetaniAppShellProps) {
+  return (
+    <CartProvider initialItems={initialCartItems} isLoggedIn={!!profile}>
+      <PetaniAppShellInner
+        profile={profile}
+        products={products}
+        orders={orders}
+      />
+    </CartProvider>
   );
 }

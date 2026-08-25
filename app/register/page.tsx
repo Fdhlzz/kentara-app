@@ -73,6 +73,23 @@ export default function RegisterPage() {
         description: 'Selamat datang di Kentara! Mengarahkan ke dashboard Petani...',
       });
 
+      // Sync guest cart from localStorage into database if exists
+      if (typeof window !== 'undefined') {
+        const guestStorage = localStorage.getItem('kentara_guest_cart');
+        if (guestStorage) {
+          try {
+            const { syncGuestCartToDatabaseAction } = await import('@/lib/cart/cart-actions');
+            const parsed = JSON.parse(guestStorage);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              await syncGuestCartToDatabaseAction(parsed);
+              localStorage.removeItem('kentara_guest_cart');
+            }
+          } catch (e) {
+            console.error('[Register guest cart sync error]:', e);
+          }
+        }
+      }
+
       if (res.redirectTo) {
         router.push(res.redirectTo);
       } else {

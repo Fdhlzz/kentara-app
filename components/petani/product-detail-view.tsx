@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { ProductImage } from '@/components/petani/product-image';
+import { useCart } from '@/lib/cart/cart-context';
 import { useMidtransSnap } from '@/hooks/use-midtrans-snap';
 import {
   createOrderAndGetSnapAction,
@@ -56,6 +57,7 @@ export function ProductDetailView({
   currentUser,
 }: ProductDetailViewProps) {
   const router = useRouter();
+  const { addToCart, getItemQty } = useCart();
   const [quantity, setQuantity] = useState(product.min_order || 1);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
@@ -75,6 +77,7 @@ export function ProductDetailView({
 
   const isOutOfStock = product.stock <= 0;
   const isReadyToPlant = product.sprout_status === 'siap_tanam';
+  const inCartQty = getItemQty(product.id);
   const subtotal = product.price * quantity;
   const totalWeightKg = (product.weight_per_unit || 1) * quantity;
   const estimatedShipping = Math.max(20000, Math.round(totalWeightKg * 500));
@@ -95,14 +98,12 @@ export function ProductDetailView({
     });
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (isOutOfStock) {
       toast.error('Stok produk ini sedang habis.');
       return;
     }
-    toast.success(`${product.name} dimasukkan ke keranjang`, {
-      description: `${quantity} ${product.unit} berhasil ditambahkan.`,
-    });
+    await addToCart(product, quantity);
   };
 
   const handleProceedCheckout = async (e: React.FormEvent) => {
@@ -383,15 +384,19 @@ export function ProductDetailView({
                 disabled={isOutOfStock}
                 onClick={handleAddToCart}
                 variant="outline"
-                className="rounded-2xl text-xs font-bold h-11"
+                className="rounded-2xl text-xs font-bold h-11 cursor-pointer"
               >
-                + Masukkan Keranjang
+                {inCartQty > 0 ? (
+                  <span className="text-emerald-600 font-black">✓ {inCartQty} di Keranjang (+ Tambah)</span>
+                ) : (
+                  '+ Masukkan Keranjang'
+                )}
               </Button>
               <Button
                 type="button"
                 disabled={isOutOfStock}
                 onClick={() => setIsCheckoutOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black h-11 shadow-md"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black h-11 shadow-md cursor-pointer"
               >
                 Beli Sekarang (Checkout)
               </Button>
@@ -453,16 +458,16 @@ export function ProductDetailView({
               onClick={handleAddToCart}
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs font-bold h-10 px-3"
+              className="rounded-xl text-xs font-bold h-10 px-3 cursor-pointer"
             >
-              + Keranjang
+              {inCartQty > 0 ? `✓ ${inCartQty} di Keranjang` : '+ Keranjang'}
             </Button>
             <Button
               type="button"
               disabled={isOutOfStock}
               onClick={() => setIsCheckoutOpen(true)}
               size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black h-10 px-4 shadow-md"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black h-10 px-4 shadow-md cursor-pointer"
             >
               Beli Sekarang
             </Button>
