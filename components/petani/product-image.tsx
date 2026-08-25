@@ -29,16 +29,16 @@ export function ProductImage({
   if (!src || hasError) {
     return (
       <div
-        className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100 dark:from-emerald-950/40 dark:via-zinc-900 dark:to-teal-950/40 p-4 select-none ${className}`}
+        className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-100/70 via-teal-50 to-emerald-200/50 dark:from-emerald-950/60 dark:via-zinc-900 dark:to-teal-950/60 p-4 select-none ${className}`}
       >
-        <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-emerald-600/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner border border-emerald-600/15 mb-1.5">
-          <Sprout className="h-6 w-6 sm:h-7 sm:w-7" />
+        <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-2xl bg-emerald-600/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shadow-inner border border-emerald-600/20 mb-1.5">
+          <Sprout className="h-7 w-7 sm:h-8 sm:w-8" />
         </div>
-        <span className="text-[11px] sm:text-xs font-black text-emerald-800 dark:text-emerald-300 text-center leading-tight truncate max-w-[90%]">
+        <span className="text-xs sm:text-sm font-black text-emerald-900 dark:text-emerald-200 text-center leading-tight truncate max-w-[90%]">
           {variety || 'Benih Kentang'}
         </span>
         {seedClass && (
-          <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400 mt-0.5">
             Kelas {seedClass}
           </span>
         )}
