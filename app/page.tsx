@@ -54,7 +54,6 @@ export default async function Home() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <NotificationCenter role="all" />
             <Link
               href="/login"
               className="flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-50/60 px-4 py-1.5 text-xs sm:text-sm font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300 transition min-h-[36px]"
