@@ -9,13 +9,16 @@ import {
   Users,
   ArrowLeft,
   ShieldCheck,
+  Package,
+  Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
 import { getAdminDashboardStats, getCouriersList } from '@/lib/admin/courier-actions';
+import { getAdminProductStats, getAdminProductsList } from '@/lib/admin/product-actions';
 import { LogoutButton } from '@/components/auth/logout-button';
-import { CourierManager } from '@/components/admin/courier-manager';
+import { AdminViewSwitcher } from '@/components/admin/admin-view-switcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,9 +34,11 @@ export default async function AdminPage() {
     redirect(`/${profile.role}`);
   }
 
-  const [stats, couriers] = await Promise.all([
+  const [stats, couriers, productStats, products] = await Promise.all([
     getAdminDashboardStats(),
     getCouriersList(),
+    getAdminProductStats(),
+    getAdminProductsList(),
   ]);
 
   return (
@@ -60,7 +65,7 @@ export default async function AdminPage() {
                 </Badge>
               </div>
               <span className="text-[10px] text-zinc-500 font-medium">
-                Pusat Kendali Marketplace
+                Pusat Kendali Marketplace &amp; Komoditas Benih Kentang
               </span>
             </div>
           </div>
@@ -94,7 +99,7 @@ export default async function AdminPage() {
                   {profile.role.toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-3">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 flex flex-wrap items-center gap-3">
                 <span className="flex items-center gap-1">
                   <Mail className="h-3 w-3" />
                   {profile.email || 'admin@kentara.com'}
@@ -116,6 +121,23 @@ export default async function AdminPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
             <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Benih Kentang</span>
+              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
+                <Sprout className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                {productStats.totalProducts}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                {productStats.activeProducts} aktif di etalase
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-500">Mitra Kurir</span>
               <div className="p-2 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50">
                 <Truck className="h-4 w-4" />
@@ -125,59 +147,52 @@ export default async function AdminPage() {
               <span className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">
                 {stats.totalKurir}
               </span>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Akun kurir aktif</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Armada pengiriman</p>
             </div>
           </Card>
 
           <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-500">Mitra Petani</span>
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
-                <Sprout className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                {stats.totalPetani}
-              </span>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Pembeli &amp; petani</p>
-            </div>
-          </Card>
-
-          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500">Total Akun</span>
-              <div className="p-2 rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50">
                 <Users className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-extrabold text-zinc-900 dark:text-white">
-                {stats.totalUsers}
+              <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
+                {stats.totalPetani}
               </span>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Seluruh pengguna</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Pelanggan terdaftar</p>
             </div>
           </Card>
 
           <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500">Admin Platform</span>
+              <span className="text-xs font-semibold text-zinc-500">Stok Tersedia</span>
               <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/50">
-                <ShieldAlert className="h-4 w-4" />
+                <Package className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3">
               <span className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
-                {stats.totalAdmin}
+                {productStats.totalStockKg.toLocaleString('id-ID')}{' '}
+                <span className="text-xs font-semibold">Kg</span>
               </span>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Pengelola sistem</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                + {productStats.totalStockKnol.toLocaleString('id-ID')} Knol G0
+              </p>
             </div>
           </Card>
         </div>
 
-        {/* Courier Management Menu / Section */}
+        {/* Dynamic Multi-Tab Admin Section */}
         <section className="space-y-4">
-          <CourierManager initialCouriers={couriers} />
+          <AdminViewSwitcher
+            initialProducts={products}
+            productStats={productStats}
+            initialCouriers={couriers}
+            defaultTab="products"
+          />
         </section>
       </main>
     </div>
