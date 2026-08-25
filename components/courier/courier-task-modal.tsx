@@ -23,6 +23,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +87,18 @@ export function CourierTaskModal({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  // Optimistic order status state for instantaneous UI transition
+  const [currentOrderStatus, setCurrentOrderStatus] = useState<string>(order?.order_status || 'diproses');
+  const [isSimulatedArrival, setIsSimulatedArrival] = useState(false);
+
+  // Sync state when order prop changes
+  useEffect(() => {
+    if (order) {
+      setCurrentOrderStatus(order.order_status);
+      setIsSimulatedArrival(false);
+    }
+  }, [order?.id, order?.order_status]);
+
   // Cash Confirmation Modal state
   const [isCashConfirmOpen, setIsCashConfirmOpen] = useState(false);
   const [cashConfirmedCheckbox, setCashConfirmedCheckbox] = useState(false);
@@ -138,8 +152,8 @@ export function CourierTaskModal({
   if (!order || !isOpen) return null;
 
   const isCashOrder = order.payment_gateway === 'cash';
-  const isStarted = order.order_status === 'dikirim';
-  const isFinished = order.order_status === 'selesai';
+  const isStarted = currentOrderStatus === 'dikirim';
+  const isFinished = currentOrderStatus === 'selesai';
 
   const distanceKm =
     roadRoute?.distanceKm !== undefined
@@ -157,7 +171,9 @@ export function CourierTaskModal({
       : Math.max(3, Math.round((distanceKm / 35) * 60));
 
   const distanceMeters = Math.round(distanceKm * 1000);
-  const isNearCustomer = distanceMeters <= 600;
+  
+  // Proximity Gate: Enabled if within 500m of customer or if simulation arrival is clicked
+  const isNearCustomer = distanceMeters <= 500 || isSimulatedArrival;
 
   const markers: MapMarkerData[] = [
     {
@@ -165,7 +181,7 @@ export function CourierTaskModal({
       position: courierPosition,
       title: `Kurir: ${courierName}`,
       description: isGpsActive
-        ? `📍 GPS Asli Perangkat Aktif (${courierPosition[0].toFixed(5)}, ${courierPosition[1].toFixed(5)})`
+        ? `📍 GPS Asli Perangkat (${courierPosition[0].toFixed(5)}, ${courierPosition[1].toFixed(5)})`
         : 'Mencari sinyal GPS perangkat...',
       type: 'courier',
       phone: courierPhone,
@@ -193,16 +209,21 @@ export function CourierTaskModal({
     isRealRoadRoute: roadRoute?.isSuccess ?? false,
   };
 
-  // 1. Swipe to Start Delivery
+  // 1. Swipe to Start Delivery (Immediately hides start button & switches to finish button)
   const handleStartDelivery = () => {
+    // Instant local optimistic update
+    setCurrentOrderStatus('dikirim');
+
     startTransition(async () => {
       const res = await startCourierDeliveryAction(order.id);
       if (!res.success) {
+        // Rollback if failed
+        setCurrentOrderStatus('diproses');
         toast.error(res.error || 'Gagal memulai pengantaran');
         return;
       }
       toast.success('Pengantaran Dimulai!', {
-        description: 'Status pesanan berubah menjadi Sedang Diantar. Pelanggan dapat melacak posisi Anda.',
+        description: 'Status pesanan telah berubah menjadi Dalam Pengantaran. Lacak rute ke lokasi pembeli.',
       });
       router.refresh();
     });
@@ -210,6 +231,13 @@ export function CourierTaskModal({
 
   // 2. Swipe to Finish Delivery
   const handleFinishDeliveryAttempt = () => {
+    if (!isNearCustomer) {
+      toast.warning('Belum Tiba di Lokasi', {
+        description: `Jarak Anda masih ${distanceKm} km dari titik pembeli. Tombol akan aktif saat tiba di lokasi.`,
+      });
+      return;
+    }
+
     if (isCashOrder && order.payment_status !== 'settlement' && order.payment_status !== 'paid') {
       setIsCashConfirmOpen(true);
       return;
@@ -231,6 +259,7 @@ export function CourierTaskModal({
         return;
       }
 
+      setCurrentOrderStatus('selesai');
       toast.success('Tugas Pengantaran Sukses Selesai!', {
         description: `Pesanan ${order.order_code} telah ditandai selesai. Terima kasih atas kerja keras Anda!`,
       });
@@ -467,37 +496,67 @@ export function CourierTaskModal({
           </div>
         </div>
 
-        {/* 5. Interactive Mobile Swipe-to-Action Buttons */}
-        <div>
+        {/* 5. Interactive Mobile Swipe-to-Action Buttons & Proximity Gate */}
+        <div className="space-y-2">
           {isFinished ? (
             <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-900 text-center text-xs font-bold text-zinc-600 dark:text-zinc-400 flex items-center justify-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span>Pengantaran ini telah selesai diserahkan.</span>
             </div>
           ) : !isStarted ? (
-            /* STEP 1: Swipe to Start Delivery */
-            <SwipeButton
-              text="Geser untuk Mulai Pengantaran ➔"
-              variant="primary"
-              isLoading={isPending}
-              onSwipeComplete={handleStartDelivery}
-            />
-          ) : (
-            /* STEP 2: Swipe to Complete Delivery */
+            /* STEP 1: Swipe to Start Delivery (Gone once swiped) */
             <div className="space-y-1.5">
-              {!isNearCustomer && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 text-center font-medium flex items-center justify-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  <span>Jarak ke pembeli: {distanceKm} km. Disarankan geser saat tiba di lokasi lahan.</span>
-                </p>
+              <SwipeButton
+                text="Geser untuk Mulai Pengantaran ➔"
+                variant="primary"
+                isLoading={isPending}
+                onSwipeComplete={handleStartDelivery}
+              />
+              <p className="text-[10px] text-zinc-400 text-center">
+                Geser ke kanan untuk memulai navigasi rute ke lahan pembeli.
+              </p>
+            </div>
+          ) : (
+            /* STEP 2: Swipe to Complete Delivery (Enabled ONLY when close to customer location) */
+            <div className="space-y-2">
+              {/* Proximity Status Hint */}
+              {isNearCustomer ? (
+                <div className="p-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-2 shadow-xs">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Anda telah tiba di lokasi lahan!</span>
+                  </div>
+                  <span className="text-[10px] font-semibold bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                    Siap Selesai
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 font-semibold min-w-0">
+                    <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <span className="truncate">Terkunci: Jarak {distanceKm} km ({distanceMeters}m lagi)</span>
+                  </div>
+                  {/* Simulation / Testing arrival toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSimulatedArrival(true)}
+                    className="text-[10px] text-blue-600 hover:underline font-bold shrink-0 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-900 cursor-pointer"
+                  >
+                    Simulasi Tiba
+                  </button>
+                </div>
               )}
+
+              {/* Complete Swipe Button (Disabled until arrived) */}
               <SwipeButton
                 text={
                   isCashOrder
                     ? 'Geser untuk Terima Kas COD & Selesai ➔'
                     : 'Geser untuk Selesaikan Pengantaran ➔'
                 }
-                variant="success"
+                disabledText={`Terkunci: Belum Tiba (${distanceKm} km lagi)`}
+                variant={isNearCustomer ? 'success' : 'primary'}
+                disabled={!isNearCustomer || isPending}
                 isLoading={isPending}
                 onSwipeComplete={handleFinishDeliveryAttempt}
               />

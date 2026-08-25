@@ -80,20 +80,45 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
-  it('should transition order from diproses to dikirim on Swipe to Start Delivery', () => {
-    function startDelivery(order: Order): Order {
-      if (order.order_status !== 'diproses') {
-        throw new Error('Hanya pesanan berstatus diproses yang dapat dimulai pengantarannya.');
+  it('should transition order from diproses to dikirim on Swipe to Start Delivery and switch buttons', () => {
+    function getActionButtonState(orderStatus: string, isNear: boolean) {
+      if (orderStatus === 'diproses') {
+        return {
+          showStartButton: true,
+          showCompleteButton: false,
+          isCompleteDisabled: true,
+        };
+      }
+      if (orderStatus === 'dikirim') {
+        return {
+          showStartButton: false,
+          showCompleteButton: true,
+          isCompleteDisabled: !isNear,
+        };
       }
       return {
-        ...order,
-        order_status: 'dikirim',
-        updated_at: new Date().toISOString(),
+        showStartButton: false,
+        showCompleteButton: false,
+        isCompleteDisabled: true,
       };
     }
 
-    const inTransitOrder = startDelivery(mockAssignedOrder);
-    expect(inTransitOrder.order_status).toBe('dikirim');
+    // Step 1: Initial state before start
+    const step1 = getActionButtonState('diproses', false);
+    expect(step1.showStartButton).toBe(true);
+    expect(step1.showCompleteButton).toBe(false);
+
+    // Step 2: In transit but still far (>500m)
+    const step2 = getActionButtonState('dikirim', false);
+    expect(step2.showStartButton).toBe(false); // Start button is GONE
+    expect(step2.showCompleteButton).toBe(true); // Complete button appears
+    expect(step2.isCompleteDisabled).toBe(true); // But disabled because far
+
+    // Step 3: Arrived close to customer (<=500m)
+    const step3 = getActionButtonState('dikirim', true);
+    expect(step3.showStartButton).toBe(false);
+    expect(step3.showCompleteButton).toBe(true);
+    expect(step3.isCompleteDisabled).toBe(false); // ENABLED!
   });
 
   it('should accurately detect when courier is within proximity of the customer coordinate', () => {
@@ -101,8 +126,8 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     const nearbyCourier: [number, number] = [-6.8125, 107.619]; // ~25m away
     const farCourier: [number, number] = [-6.85, 107.6]; // ~4.5km away
 
-    expect(isNearbyCustomer(nearbyCourier, customerCoords, 300)).toBe(true);
-    expect(isNearbyCustomer(farCourier, customerCoords, 300)).toBe(false);
+    expect(isNearbyCustomer(nearbyCourier, customerCoords, 500)).toBe(true);
+    expect(isNearbyCustomer(farCourier, customerCoords, 500)).toBe(false);
   });
 
   it('should require cash confirmation before completing Cash on Delivery (COD) order', () => {

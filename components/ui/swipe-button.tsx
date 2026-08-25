@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, Check, Loader2 } from 'lucide-react';
+import { ChevronRight, Check, Loader2, Lock } from 'lucide-react';
 
 interface SwipeButtonProps {
   text: string;
+  disabledText?: string;
   onSwipeComplete: () => void | Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
@@ -14,6 +15,7 @@ interface SwipeButtonProps {
 
 export function SwipeButton({
   text,
+  disabledText,
   onSwipeComplete,
   isLoading = false,
   disabled = false,
@@ -104,23 +106,31 @@ export function SwipeButton({
   }, [isLoading, disabled]);
 
   const getVariantStyles = () => {
+    if (disabled) {
+      return {
+        bg: 'bg-zinc-700 dark:bg-zinc-800',
+        track: 'bg-zinc-900/70 border-zinc-800',
+        handle: 'bg-zinc-700 text-zinc-400 shadow-none',
+      };
+    }
+
     switch (variant) {
       case 'success':
         return {
           bg: 'bg-emerald-600 dark:bg-emerald-700',
-          track: 'bg-emerald-950/80 border-emerald-500/30',
-          handle: 'bg-white text-emerald-700 shadow-emerald-900/30',
+          track: 'bg-emerald-950/90 border-emerald-500/40 ring-2 ring-emerald-500/20',
+          handle: 'bg-white text-emerald-700 shadow-emerald-900/40',
         };
       case 'warning':
         return {
           bg: 'bg-amber-600 dark:bg-amber-700',
-          track: 'bg-amber-950/80 border-amber-500/30',
+          track: 'bg-amber-950/90 border-amber-500/40',
           handle: 'bg-white text-amber-700 shadow-amber-900/30',
         };
       default:
         return {
           bg: 'bg-blue-600 dark:bg-blue-700',
-          track: 'bg-zinc-900 dark:bg-zinc-900 border-zinc-700/80',
+          track: 'bg-zinc-900 border-zinc-700/80 ring-2 ring-blue-500/20',
           handle: 'bg-white text-blue-700 shadow-blue-900/30',
         };
     }
@@ -133,7 +143,7 @@ export function SwipeButton({
       ref={containerRef}
       className={`relative h-14 w-full rounded-2xl overflow-hidden select-none touch-none p-1 border shadow-lg flex items-center justify-center transition-all ${
         styles.track
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
+      } ${disabled ? 'opacity-65 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
     >
       {/* Background Fill as dragged */}
       <div
@@ -145,14 +155,19 @@ export function SwipeButton({
 
       {/* Label Text */}
       <span
-        className={`relative z-10 text-xs sm:text-sm font-black tracking-wide text-white transition-opacity ${
-          sliderPosition > 50 ? 'opacity-40' : 'opacity-100'
-        }`}
+        className={`relative z-10 text-xs sm:text-sm font-black tracking-wide transition-opacity ${
+          disabled ? 'text-zinc-400' : 'text-white'
+        } ${sliderPosition > 50 ? 'opacity-40' : 'opacity-100'}`}
       >
         {isLoading ? (
           <span className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Memproses...</span>
+          </span>
+        ) : disabled && disabledText ? (
+          <span className="flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            <span>{disabledText}</span>
           </span>
         ) : (
           text
@@ -167,12 +182,16 @@ export function SwipeButton({
         onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown}
         style={{ transform: `translateX(${sliderPosition}px)` }}
-        className={`absolute left-1 top-1 bottom-1 w-12 rounded-xl flex items-center justify-center shadow-md z-20 cursor-grab active:cursor-grabbing transition-transform ${
-          isDragging ? 'duration-0 scale-95' : 'duration-300'
-        } ${styles.handle}`}
+        className={`absolute left-1 top-1 bottom-1 w-12 rounded-xl flex items-center justify-center shadow-md z-20 transition-transform ${
+          disabled
+            ? 'cursor-not-allowed'
+            : 'cursor-grab active:cursor-grabbing hover:scale-105'
+        } ${isDragging ? 'duration-0 scale-95' : 'duration-300'} ${styles.handle}`}
       >
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
+        ) : disabled ? (
+          <Lock className="h-4 w-4" />
         ) : isCompleted ? (
           <Check className="h-5 w-5" />
         ) : (
