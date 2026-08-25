@@ -87,6 +87,8 @@ export interface CreateOrderInput {
   shipping_city?: string;
   notes?: string;
   shipping_cost?: number;
+  payment_method_type?: 'gateway' | 'cash';
+  payment_method_detail?: string;
   items: CreateOrderItemInput[];
 }
 

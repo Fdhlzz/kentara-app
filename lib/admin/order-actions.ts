@@ -69,6 +69,8 @@ export async function createOrderAndGetSnapAction(
       notes,
       items,
       shipping_cost = 15000,
+      payment_method_type = 'gateway',
+      payment_method_detail = 'midtrans',
     } = input;
 
     if (!customer_name?.trim()) {
@@ -104,6 +106,7 @@ export async function createOrderAndGetSnapAction(
 
     const total_amount = subtotal + Math.round(Number(shipping_cost));
     const order_code = generateOrderCode();
+    const isCash = payment_method_type === 'cash';
 
     // 1. Insert into public.orders
     const { data: orderData, error: orderError } = await supabase
@@ -120,7 +123,8 @@ export async function createOrderAndGetSnapAction(
         subtotal,
         shipping_cost: Math.round(Number(shipping_cost)),
         total_amount,
-        payment_gateway: 'midtrans',
+        payment_gateway: isCash ? 'cash' : 'midtrans',
+        payment_method: isCash ? 'cash_on_delivery' : payment_method_detail,
         payment_status: 'pending',
         order_status: 'menunggu_pembayaran',
       })
@@ -146,54 +150,69 @@ export async function createOrderAndGetSnapAction(
       console.error('[createOrderItems Error]:', itemsError);
     }
 
-    // 3. Create Snap Transaction with Midtrans
-    const midtransParams: MidtransSnapTransactionParams = {
-      transaction_details: {
-        order_id: order_code,
-        gross_amount: total_amount,
-      },
-      item_details: [
-        ...sanitizedItems.map((item) => ({
-          id: String(item.product_id || item.product_name).slice(0, 50),
-          price: item.price,
-          quantity: item.quantity,
-          name: item.product_name.slice(0, 50),
-          category: 'Benih Kentang',
-        })),
-        {
-          id: 'shipping-fee',
-          price: Math.round(Number(shipping_cost)),
-          quantity: 1,
-          name: 'Ongkos Kirim Logistik Kentara',
-          category: 'Pengiriman',
-        },
-      ],
-      customer_details: {
-        first_name: customer_name.trim(),
-        phone: customer_phone.trim(),
-        email: customer_email?.trim() || 'pelanggan@kentara.id',
-      },
-    };
+    // 3. Insert into public.payments
+    const payment_code = `PAY-${order_code.slice(4)}`;
+    await supabase.from('payments').insert({
+      payment_code,
+      order_id: orderData.id,
+      user_id: user?.id || null,
+      amount: total_amount,
+      payment_method_type: isCash ? 'cash' : 'gateway',
+      payment_method_detail: isCash ? 'cash_on_delivery' : payment_method_detail,
+      payment_status: 'pending',
+    });
 
     let snapToken = '';
     let redirectUrl = '';
 
-    try {
-      const snapRes = await createSnapTransaction(midtransParams);
-      snapToken = snapRes.token;
-      redirectUrl = snapRes.redirect_url;
+    // 4. If online gateway, generate Snap Token
+    if (!isCash) {
+      const midtransParams: MidtransSnapTransactionParams = {
+        transaction_details: {
+          order_id: order_code,
+          gross_amount: total_amount,
+        },
+        item_details: [
+          ...sanitizedItems.map((item) => ({
+            id: String(item.product_id || item.product_name).slice(0, 50),
+            price: item.price,
+            quantity: item.quantity,
+            name: item.product_name.slice(0, 50),
+            category: 'Benih Kentang',
+          })),
+          {
+            id: 'shipping-fee',
+            price: Math.round(Number(shipping_cost)),
+            quantity: 1,
+            name: 'Ongkos Kirim Logistik Kentara',
+            category: 'Pengiriman',
+          },
+        ],
+        customer_details: {
+          first_name: customer_name.trim(),
+          phone: customer_phone.trim(),
+          email: customer_email?.trim() || 'pelanggan@kentara.id',
+        },
+      };
 
-      // Update snap token in order
-      await supabase
-        .from('orders')
-        .update({ midtrans_snap_token: snapToken })
-        .eq('id', orderData.id);
-    } catch (midtransErr) {
-      console.error('[Midtrans Snap Creation Error]:', midtransErr);
+      try {
+        const snapRes = await createSnapTransaction(midtransParams);
+        snapToken = snapRes.token;
+        redirectUrl = snapRes.redirect_url;
+
+        // Update snap token in order
+        await supabase
+          .from('orders')
+          .update({ midtrans_snap_token: snapToken })
+          .eq('id', orderData.id);
+      } catch (midtransErr) {
+        console.error('[Midtrans Snap Creation Error]:', midtransErr);
+      }
     }
 
     revalidatePath('/admin');
     revalidatePath('/admin/orders');
+    revalidatePath('/admin/payments');
 
     const completeOrder: Order = {
       ...orderData,
@@ -240,16 +259,17 @@ export async function markOrderPaymentSuccessAction(
       return { success: true };
     }
 
+    const now = new Date().toISOString();
+
     // 2. Update order to paid status
-    // Note: The Postgres trigger `tr_reduce_stock_on_paid` will automatically reduce stock
     const { error: updateError } = await supabase
       .from('orders')
       .update({
         payment_status: 'settlement',
         order_status: 'sudah_dibayar',
-        payment_method: paymentDetails?.payment_method || 'qris',
+        payment_method: paymentDetails?.payment_method || 'midtrans',
         midtrans_transaction_id: paymentDetails?.transaction_id || null,
-        paid_at: new Date().toISOString(),
+        paid_at: now,
       })
       .eq('id', order.id);
 
@@ -257,6 +277,17 @@ export async function markOrderPaymentSuccessAction(
       console.error('[markOrderPaymentSuccessAction Error]:', updateError);
       return { success: false, error: updateError.message };
     }
+
+    // 3. Update payment table to completed
+    await supabase
+      .from('payments')
+      .update({
+        payment_status: 'completed',
+        paid_at: now,
+        gateway_transaction_id: paymentDetails?.transaction_id || null,
+        payment_method_detail: paymentDetails?.payment_method || 'midtrans',
+      })
+      .eq('order_id', order.id);
 
     // 3. Fallback explicit stock deduction check
     const { data: items } = await supabase

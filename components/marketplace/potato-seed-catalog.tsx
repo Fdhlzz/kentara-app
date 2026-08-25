@@ -17,6 +17,7 @@ import {
   Phone,
   User,
   CreditCard,
+  Banknote,
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
@@ -68,6 +69,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethodType, setPaymentMethodType] = useState<'gateway' | 'cash'>('gateway');
 
   const { openSnapPopup } = useMidtransSnap();
 
@@ -86,7 +88,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
     });
 
     toast.success(`${product.name} dimasukkan ke keranjang`, {
-      description: `Klik keranjang untuk lanjut ke pembayaran.`,
+      description: `Klik keranjang di bawah untuk checkout.`,
     });
   };
 
@@ -123,7 +125,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
   const shippingCost = cart.length > 0 ? 25000 : 0;
   const grandTotal = subtotal + shippingCost;
 
-  // Handle Checkout & Midtrans Snap
+  // Handle Checkout
   const handleProceedCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -166,6 +168,8 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
         shipping_city: shippingCity || undefined,
         notes: notes || undefined,
         shipping_cost: shippingCost,
+        payment_method_type: paymentMethodType,
+        payment_method_detail: paymentMethodType === 'cash' ? 'cash_on_delivery' : 'midtrans',
         items: itemsPayload,
       });
 
@@ -178,8 +182,17 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
       const orderCode = res.order.order_code;
       setCompletedOrderCode(orderCode);
 
-      if (res.snapToken) {
-        // Open Midtrans Snap Popup
+      // CASH ON DELIVERY (COD)
+      if (paymentMethodType === 'cash') {
+        setIsCheckoutOpen(false);
+        setCart([]);
+        setIsSuccessOpen(true);
+        toast.success('Pesanan Tunai (COD) Berhasil Dibuat!', {
+          description: `Pesanan telah masuk ke sistem dan akan dikirim oleh kurir.`,
+        });
+      }
+      // PAYMENT GATEWAY (MIDTRANS)
+      else if (res.snapToken) {
         openSnapPopup(res.snapToken, {
           onSuccess: async (result) => {
             await markOrderPaymentSuccessAction(orderCode, {
@@ -209,7 +222,6 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
           },
         });
       } else {
-        // Direct success fallback
         setIsCheckoutOpen(false);
         setCart([]);
         setIsSuccessOpen(true);
@@ -387,7 +399,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
         })}
       </div>
 
-      {/* Floating Bottom Cart Bar (Sticky when cart has items) */}
+      {/* Floating Bottom Cart Bar */}
       {cart.length > 0 && (
         <div className="fixed bottom-5 left-4 right-4 max-w-4xl mx-auto z-40 animate-in fade-in slide-in-from-bottom-5">
           <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-900/95 dark:bg-zinc-900/95 text-white shadow-2xl backdrop-blur-md border border-zinc-700/80 flex items-center justify-between gap-3">
@@ -412,14 +424,14 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
               onClick={() => setIsCheckoutOpen(true)}
               className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-extrabold rounded-xl px-5 text-xs sm:text-sm h-10 gap-1.5 shadow-md"
             >
-              <span>Bayar via Midtrans</span>
+              <span>Lanjut ke Pembayaran</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* MULTI-PRODUCT CHECKOUT DIALOG */}
+      {/* CHECKOUT DIALOG (GATEWAY & CASH) */}
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
@@ -428,7 +440,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
               Checkout Pembelian Benih Kentang
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Periksa varietas benih yang dibeli, lengkapi alamat pengantaran, dan bayar aman dengan gateway Midtrans.
+              Pilih metode pembayaran (Gerbang Online Midtrans atau Bayar Tunai di Tempat), lengkapi alamat penerima.
             </DialogDescription>
           </DialogHeader>
 
@@ -439,7 +451,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
                 1. Daftar Benih yang Dipesan ({cart.length} Varietas)
               </span>
 
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-50/50 dark:bg-zinc-900/50 max-h-52 overflow-y-auto">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-50/50 dark:bg-zinc-900/50 max-h-48 overflow-y-auto">
                 {cart.map(({ product, quantity }) => (
                   <div key={product.id} className="p-3 flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -566,7 +578,84 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
               </div>
             </div>
 
-            {/* 3. Cost Summary */}
+            {/* 3. Payment Method Choice (Gateway vs Cash) */}
+            <div className="space-y-2.5 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
+              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide block">
+                3. Pilih Metode Pembayaran
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Option 1: Midtrans Gateway */}
+                <label
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                    paymentMethodType === 'gateway'
+                      ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/60 ring-2 ring-emerald-500/20'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="payment_choice"
+                      value="gateway"
+                      checked={paymentMethodType === 'gateway'}
+                      onChange={() => setPaymentMethodType('gateway')}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard className="h-4 w-4 text-emerald-600" />
+                        <span className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-white">
+                          Gerbang Online (Midtrans)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
+                        QRIS, GoPay, ShopeePay, Bank Virtual Account (BCA, Mandiri, BRI, BNI).
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-emerald-600 text-white text-[9px] self-start mt-2">
+                    ⚡ Otomatis &amp; Instan
+                  </Badge>
+                </label>
+
+                {/* Option 2: Cash on Delivery */}
+                <label
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                    paymentMethodType === 'cash'
+                      ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/60 ring-2 ring-emerald-500/20'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="payment_choice"
+                      value="cash"
+                      checked={paymentMethodType === 'cash'}
+                      onChange={() => setPaymentMethodType('cash')}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="h-4 w-4 text-amber-600" />
+                        <span className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-white">
+                          Bayar Tunai di Tempat (COD)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
+                        Bayar uang tunai langsung kepada kurir saat benih tiba di lahan Anda.
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-amber-600 text-white text-[9px] self-start mt-2">
+                    💵 Bayar ke Kurir
+                  </Badge>
+                </label>
+              </div>
+            </div>
+
+            {/* 4. Cost Summary */}
             <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 space-y-1.5 text-xs">
               <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                 <span>Subtotal Benih</span>
@@ -599,7 +688,12 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Membuka Midtrans Snap...</span>
+                    <span>Memproses Pesanan...</span>
+                  </>
+                ) : paymentMethodType === 'cash' ? (
+                  <>
+                    <Banknote className="h-4 w-4" />
+                    <span>Konfirmasi Pesanan Tunai (COD)</span>
                   </>
                 ) : (
                   <>
@@ -620,20 +714,24 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <DialogTitle className="text-xl font-extrabold text-zinc-900 dark:text-white">
-            Pesanan Berhasil Diproses!
+            Pesanan Berhasil Diterima!
           </DialogTitle>
           <DialogDescription className="text-xs text-zinc-500 mt-1">
-            Kode Pesanan: <strong className="font-mono text-zinc-900 dark:text-white">{completedOrderCode}</strong>
+            Kode Transaksi: <strong className="font-mono text-zinc-900 dark:text-white">{completedOrderCode}</strong>
           </DialogDescription>
 
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-800 text-xs text-left space-y-1.5 my-3">
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-800 text-xs text-left space-y-2 my-3">
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
               <Check className="h-4 w-4 shrink-0" />
-              <span>Stok benih telah otomatis dikurangi di sistem</span>
+              <span>
+                {paymentMethodType === 'cash'
+                  ? 'Metode: Bayar Tunai saat Terima (COD ke Kurir)'
+                  : 'Metode: Gateway Online Midtrans'}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-semibold">
               <Check className="h-4 w-4 shrink-0" />
-              <span>Pesanan kini muncul di menu Admin Panel untuk penugasan kurir</span>
+              <span>Pesanan masuk ke dashboard Admin untuk penugasan kurir pengantar</span>
             </div>
           </div>
 

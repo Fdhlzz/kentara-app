@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Sprout, ShoppingBag, Truck } from 'lucide-react';
+import { Sprout, ShoppingBag, Truck, Receipt } from 'lucide-react';
 import { ProductManager } from '@/components/admin/product-manager';
 import { OrderManager } from '@/components/admin/order-manager';
+import { PaymentManager } from '@/components/admin/payment-manager';
 import { CourierManager } from '@/components/admin/courier-manager';
 import type { Product, AdminProductStats } from '@/types/product';
 import type { Order, AdminOrderStats } from '@/types/order';
+import type { Payment, AdminPaymentStats } from '@/types/payment';
 import type { CourierUser } from '@/lib/admin/courier-actions';
 
 interface AdminViewSwitcherProps {
@@ -14,8 +16,10 @@ interface AdminViewSwitcherProps {
   productStats: AdminProductStats;
   initialOrders: Order[];
   orderStats: AdminOrderStats;
+  initialPayments: Payment[];
+  paymentStats: AdminPaymentStats;
   initialCouriers: CourierUser[];
-  defaultTab?: 'products' | 'orders' | 'couriers';
+  defaultTab?: 'products' | 'orders' | 'payments' | 'couriers';
 }
 
 export function AdminViewSwitcher({
@@ -23,10 +27,12 @@ export function AdminViewSwitcher({
   productStats,
   initialOrders,
   orderStats,
+  initialPayments,
+  paymentStats,
   initialCouriers,
   defaultTab = 'products',
 }: AdminViewSwitcherProps) {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'couriers'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'payments' | 'couriers'>(defaultTab);
 
   return (
     <div className="space-y-6">
@@ -78,7 +84,30 @@ export function AdminViewSwitcher({
           </span>
         </button>
 
-        {/* 3. Couriers Tab */}
+        {/* 3. Payments Tab (NEW) */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('payments')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition shrink-0 ${
+            activeTab === 'payments'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800'
+          }`}
+        >
+          <Receipt className="h-4 w-4" />
+          <span>Transaksi Pembayaran</span>
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded-md font-extrabold ${
+              activeTab === 'payments'
+                ? 'bg-purple-700/50 text-white'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+            }`}
+          >
+            {paymentStats?.totalPayments ?? initialPayments.length}
+          </span>
+        </button>
+
+        {/* 4. Couriers Tab */}
         <button
           type="button"
           onClick={() => setActiveTab('couriers')}
@@ -112,6 +141,12 @@ export function AdminViewSwitcher({
             initialOrders={initialOrders}
             stats={orderStats}
             couriers={initialCouriers}
+          />
+        )}
+        {activeTab === 'payments' && (
+          <PaymentManager
+            initialPayments={initialPayments}
+            stats={paymentStats}
           />
         )}
         {activeTab === 'couriers' && (
