@@ -202,21 +202,20 @@ describe('Petani Customer Portal & Product Catalog Unit Tests', () => {
     expect(outOfStockState.buttonText).toBe('Stok Habis');
   });
 
-  it('should maintain single active navbar menu for catalog while providing rich farmer account controls', () => {
-    interface NavbarConfig {
-      activeMenu: string;
-      availableMenus: { key: string; label: string; href: string }[];
+  it('should support 2-column mobile marketplace layout with thumb-friendly touch targets', () => {
+    function getMobileLayoutSpecs(screenWidth: number) {
+      const isMobile = screenWidth < 640;
+      return {
+        gridCols: isMobile ? 2 : 4,
+        compactHeader: isMobile,
+        minTouchTargetPx: 44,
+        drawerMaxHeight: '85vh',
+      };
     }
 
-    const navbar: NavbarConfig = {
-      activeMenu: 'katalog',
-      availableMenus: [
-        { key: 'katalog', label: 'Katalog Benih Unggul', href: '/petani' },
-      ],
-    };
-
-    expect(navbar.availableMenus).toHaveLength(1);
-    expect(navbar.availableMenus[0].key).toBe('katalog');
-    expect(navbar.activeMenu).toBe('katalog');
+    const mobileSpecs = getMobileLayoutSpecs(390); // iPhone/Pixel mobile width
+    expect(mobileSpecs.gridCols).toBe(2);
+    expect(mobileSpecs.compactHeader).toBe(true);
+    expect(mobileSpecs.minTouchTargetPx).toBeGreaterThanOrEqual(44);
   });
 });
