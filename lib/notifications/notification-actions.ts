@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { sendWebPushNotification } from '@/lib/notifications/push-dispatcher';
 import type {
   AppNotification,
   SendNotificationInput,
@@ -9,7 +10,7 @@ import type {
 } from '@/types/notification';
 
 /**
- * Kirim notifikasi sistem (In-App & Push Notification)
+ * Kirim notifikasi sistem (In-App & Background Web Push Notification)
  */
 export async function sendNotificationAction(
   input: SendNotificationInput
@@ -27,6 +28,7 @@ export async function sendNotificationAction(
       data = null,
     } = input;
 
+    // 1. Insert in-app notification record
     const { data: notifData, error } = await supabase
       .from('notifications')
       .insert({
@@ -45,6 +47,13 @@ export async function sendNotificationAction(
     if (error || !notifData) {
       console.error('[sendNotificationAction Error]:', error);
       return { success: false, error: error?.message || 'Gagal menyimpan notifikasi.' };
+    }
+
+    // 2. Dispatch background Web Push (PWA & browser devices)
+    try {
+      await sendWebPushNotification(input);
+    } catch (pushErr) {
+      console.error('[sendWebPushNotification Dispatch Error]:', pushErr);
     }
 
     revalidatePath('/admin');
