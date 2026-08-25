@@ -797,38 +797,37 @@ export function CourierTaskModal({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsCashConfirmOpen(false);
-                setCashConfirmedCheckbox(false);
-                setSwipeResetKey((k) => k + 1);
-              }}
-              className="rounded-2xl text-xs font-semibold h-11"
-            >
-              Batal
-            </Button>
+          <div className="pt-2">
             <Button
               type="button"
               disabled={!cashConfirmedCheckbox || isPending}
               onClick={() => executeCompleteDelivery(true, cashNotes)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black h-11 gap-1.5 shadow-lg flex-1 cursor-pointer"
+              className={`w-full rounded-2xl text-xs sm:text-sm font-black h-13 shadow-xl transition-all flex items-center justify-center gap-2 select-none ${
+                isPending
+                  ? 'bg-emerald-700 text-white cursor-wait'
+                  : cashConfirmedCheckbox
+                  ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/30 hover:shadow-emerald-600/50 active:scale-[0.99] cursor-pointer'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700 cursor-not-allowed opacity-75 shadow-none'
+              }`}
             >
               {isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Memproses Transaksi...</span>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Memproses Pelunasan Kas...</span>
+                </>
+              ) : cashConfirmedCheckbox ? (
+                <>
+                  <Check className="h-5 w-5 stroke-[3] text-white" />
+                  <span>Selesaikan Tugas &amp; Serah Terima ➔</span>
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4 stroke-[3]" />
-                  <span>Selesaikan Tugas &amp; Serah Terima</span>
+                  <Lock className="h-4 w-4 text-zinc-400" />
+                  <span>Konfirmasi Penerimaan Uang di Atas</span>
                 </>
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

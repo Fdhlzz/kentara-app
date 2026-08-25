@@ -81,13 +81,13 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
-  it('should reset swipe button back to start position when cash confirmation dialog is cancelled', () => {
+  it('should reset swipe button back to start position when cash confirmation dialog is cancelled via x button', () => {
     function handleCashDialogDismissal(
       isConfirmed: boolean,
       currentResetKey: number
     ) {
       if (!isConfirmed) {
-        // Cancelled / closed without confirm -> increment resetKey to trigger smooth swipe rewind
+        // Cancelled / closed without confirm via 'X' -> increment resetKey to trigger smooth swipe rewind
         return {
           isCashDialogOpen: false,
           isCompleted: false,
@@ -108,6 +108,44 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     expect(cancelledState.isCompleted).toBe(false);
     expect(cancelledState.sliderPosition).toBe(0);
     expect(cancelledState.resetKey).toBe(1); // Triggers swipe button reset!
+  });
+
+  it('should adapt Selesaikan Tugas button state and label between unconfirmed and confirmed states', () => {
+    function getCompleteButtonState(isConfirmed: boolean, isPending: boolean) {
+      if (isPending) {
+        return {
+          disabled: true,
+          label: 'Memproses Pelunasan Kas...',
+          variant: 'loading',
+        };
+      }
+      if (!isConfirmed) {
+        return {
+          disabled: true,
+          label: 'Konfirmasi Uang Tunai di Atas Terlebih Dahulu',
+          variant: 'unconfirmed',
+        };
+      }
+      return {
+        disabled: false,
+        label: 'Selesaikan Tugas & Serah Terima ➔',
+        variant: 'ready',
+      };
+    }
+
+    const unconfirmed = getCompleteButtonState(false, false);
+    expect(unconfirmed.disabled).toBe(true);
+    expect(unconfirmed.label).toContain('Konfirmasi Uang Tunai');
+    expect(unconfirmed.variant).toBe('unconfirmed');
+
+    const confirmed = getCompleteButtonState(true, false);
+    expect(confirmed.disabled).toBe(false);
+    expect(confirmed.label).toContain('Selesaikan Tugas & Serah Terima');
+    expect(confirmed.variant).toBe('ready');
+
+    const loading = getCompleteButtonState(true, true);
+    expect(loading.disabled).toBe(true);
+    expect(loading.label).toContain('Memproses');
   });
 
   it('should sort active tasks list so that in-progress delivery (dikirim) is always moved to the very top', () => {
