@@ -28,7 +28,7 @@ export interface MapRouteData {
   isRealRoadRoute?: boolean;
 }
 
-export type TileLayerProvider = 'osm' | 'voyager' | 'satellite';
+export type TileLayerProvider = 'osm' | 'voyager' | 'dark' | 'satellite';
 
 export interface CourierLocationInput {
   order_id?: string | null;

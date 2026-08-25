@@ -108,9 +108,10 @@ export function SwipeButton({
   const getVariantStyles = () => {
     if (disabled) {
       return {
-        bg: 'bg-zinc-700 dark:bg-zinc-800',
-        track: 'bg-zinc-900/70 border-zinc-800',
-        handle: 'bg-zinc-700 text-zinc-400 shadow-none',
+        bg: 'bg-zinc-300 dark:bg-zinc-800',
+        track: 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800',
+        handle: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 shadow-none',
+        textColor: 'text-zinc-400 dark:text-zinc-500',
       };
     }
 
@@ -118,20 +119,23 @@ export function SwipeButton({
       case 'success':
         return {
           bg: 'bg-emerald-600 dark:bg-emerald-700',
-          track: 'bg-emerald-950/90 border-emerald-500/40 ring-2 ring-emerald-500/20',
-          handle: 'bg-white text-emerald-700 shadow-emerald-900/40',
+          track: 'bg-white dark:bg-zinc-900 border-2 border-emerald-500/60 dark:border-emerald-500/40 ring-2 ring-emerald-500/20 shadow-md',
+          handle: 'bg-emerald-600 dark:bg-white text-white dark:text-emerald-700 shadow-emerald-600/30',
+          textColor: 'text-emerald-900 dark:text-emerald-100',
         };
       case 'warning':
         return {
           bg: 'bg-amber-600 dark:bg-amber-700',
-          track: 'bg-amber-950/90 border-amber-500/40',
-          handle: 'bg-white text-amber-700 shadow-amber-900/30',
+          track: 'bg-white dark:bg-zinc-900 border-2 border-amber-500/60 dark:border-amber-500/40 ring-2 ring-amber-500/20 shadow-md',
+          handle: 'bg-amber-600 dark:bg-white text-white dark:text-amber-700 shadow-amber-600/30',
+          textColor: 'text-amber-900 dark:text-amber-100',
         };
       default:
         return {
           bg: 'bg-blue-600 dark:bg-blue-700',
-          track: 'bg-zinc-900 border-zinc-700/80 ring-2 ring-blue-500/20',
-          handle: 'bg-white text-blue-700 shadow-blue-900/30',
+          track: 'bg-white dark:bg-zinc-900 border-2 border-blue-500/60 dark:border-zinc-700/80 ring-2 ring-blue-500/20 shadow-md',
+          handle: 'bg-blue-600 dark:bg-white text-white dark:text-blue-700 shadow-blue-600/30',
+          textColor: 'text-blue-950 dark:text-white',
         };
     }
   };
@@ -141,9 +145,9 @@ export function SwipeButton({
   return (
     <div
       ref={containerRef}
-      className={`relative h-14 w-full rounded-2xl overflow-hidden select-none touch-none p-1 border shadow-lg flex items-center justify-center transition-all ${
+      className={`relative h-14 w-full rounded-2xl overflow-hidden select-none touch-none p-1 border flex items-center justify-center transition-all ${
         styles.track
-      } ${disabled ? 'opacity-65 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
+      } ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
     >
       {/* Background Fill as dragged */}
       <div
@@ -156,8 +160,8 @@ export function SwipeButton({
       {/* Label Text */}
       <span
         className={`relative z-10 text-xs sm:text-sm font-black tracking-wide transition-opacity ${
-          disabled ? 'text-zinc-400' : 'text-white'
-        } ${sliderPosition > 50 ? 'opacity-40' : 'opacity-100'}`}
+          sliderPosition > 50 ? 'text-white opacity-40' : styles.textColor
+        }`}
       >
         {isLoading ? (
           <span className="flex items-center gap-2">

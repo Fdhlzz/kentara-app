@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Order } from '@/types/order';
 import type { CourierUser } from '@/lib/admin/courier-actions';
+import { TILE_PROVIDERS } from '@/lib/maps/leaflet-helpers';
 
 describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => {
   const mockCourier: CourierUser = {
@@ -79,6 +80,25 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     );
     return dist <= thresholdMeters;
   }
+
+  it('should select appropriate map tile provider based on active theme mode (voyager for light, dark for dark)', () => {
+    function getThemeMapTile(theme: 'light' | 'dark' | string) {
+      const activeTile = theme === 'dark' ? 'dark' : 'voyager';
+      return {
+        activeTile,
+        provider: TILE_PROVIDERS[activeTile],
+        routeColor: theme === 'dark' ? '#3b82f6' : '#2563eb',
+      };
+    }
+
+    const lightModeMap = getThemeMapTile('light');
+    expect(lightModeMap.activeTile).toBe('voyager');
+    expect(lightModeMap.provider.url).toContain('voyager');
+
+    const darkModeMap = getThemeMapTile('dark');
+    expect(darkModeMap.activeTile).toBe('dark');
+    expect(darkModeMap.provider.url).toContain('dark_all');
+  });
 
   it('should toggle sheet minimization while preserving bottom swipe action button', () => {
     function getSheetLayoutState(isMinimized: boolean) {

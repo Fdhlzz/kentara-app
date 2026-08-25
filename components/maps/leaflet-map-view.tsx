@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import type * as L from 'leaflet';
 import { Navigation } from 'lucide-react';
 import {
@@ -41,7 +42,8 @@ export default function LeafletMapView({
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const pickerMarkerRef = useRef<L.Marker | null>(null);
 
-  const [activeTile] = useState<TileLayerProvider>('voyager');
+  const { resolvedTheme } = useTheme();
+  const activeTile: TileLayerProvider = resolvedTheme === 'dark' ? 'dark' : 'voyager';
 
   // Initialize Map
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function LeafletMapView({
         attributionControl: false, // Clean map without bottom attribution text clutter
       });
 
-      // Tile Layer (Voyager clean map)
+      // Tile Layer (Theme-aware: voyager for light mode, dark for dark mode)
       const provider = TILE_PROVIDERS[activeTile];
       const tileLayer = L.tileLayer(provider.url, {
         attribution: '',
@@ -112,6 +114,28 @@ export default function LeafletMapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update Tile Layer dynamically when active theme changes (Light vs Dark mode)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    import('leaflet').then((L) => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+
+      if (tileLayerRef.current) {
+        map.removeLayer(tileLayerRef.current);
+      }
+
+      const provider = TILE_PROVIDERS[activeTile];
+      const newTileLayer = L.tileLayer(provider.url, {
+        attribution: '',
+        maxZoom: provider.maxZoom,
+      }).addTo(map);
+
+      tileLayerRef.current = newTileLayer;
+    });
+  }, [activeTile]);
+
   // Update Markers
   useEffect(() => {
     if (!mapInstanceRef.current || !markerGroupRef.current) return;
@@ -122,19 +146,21 @@ export default function LeafletMapView({
 
       markerGroup.clearLayers();
 
+      const isDark = resolvedTheme === 'dark';
+
       markers.forEach((m) => {
         const icon = createCustomMarkerIcon(L, m.type || 'pin', m.title);
         const marker = L.marker(m.position, { icon });
 
-        // Clean Popup Content
+        // Clean Theme-Aware Popup Content
         const popupContent = `
-          <div style="padding: 10px 12px; font-family: system-ui, -apple-system, sans-serif; min-width: 170px;">
-            <div style="font-weight: 800; font-size: 13px; color: #09090b; margin-bottom: 2px;">
+          <div style="padding: 10px 12px; font-family: system-ui, -apple-system, sans-serif; min-width: 170px; background: ${isDark ? '#18181b' : '#ffffff'}; color: ${isDark ? '#f4f4f5' : '#09090b'}; border-radius: 12px;">
+            <div style="font-weight: 800; font-size: 13px; margin-bottom: 2px; color: ${isDark ? '#fafafa' : '#09090b'};">
               ${m.title}
             </div>
-            ${m.badgeText ? `<div style="display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: #ecfdf5; color: #047857; margin-bottom: 4px;">${m.badgeText}</div>` : ''}
-            ${m.description ? `<div style="font-size: 11px; color: #71717a; margin-bottom: 4px; line-height: 1.3;">${m.description}</div>` : ''}
-            ${m.phone ? `<div style="font-size: 11px; color: #2563eb; font-weight: 700;">📞 ${m.phone}</div>` : ''}
+            ${m.badgeText ? `<div style="display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: ${isDark ? '#064e3b' : '#ecfdf5'}; color: ${isDark ? '#34d399' : '#047857'}; margin-bottom: 4px;">${m.badgeText}</div>` : ''}
+            ${m.description ? `<div style="font-size: 11px; color: ${isDark ? '#a1a1aa' : '#71717a'}; margin-bottom: 4px; line-height: 1.3;">${m.description}</div>` : ''}
+            ${m.phone ? `<div style="font-size: 11px; color: #3b82f6; font-weight: 700;">📞 ${m.phone}</div>` : ''}
           </div>
         `;
 
@@ -142,7 +168,7 @@ export default function LeafletMapView({
         marker.addTo(markerGroup);
       });
     });
-  }, [markers]);
+  }, [markers, resolvedTheme]);
 
   // Update Route Polyline
   useEffect(() => {
@@ -164,7 +190,7 @@ export default function LeafletMapView({
             : [route.from, route.to];
 
         const polyline = L.polyline(polylinePoints, {
-          color: route.color || '#2563eb',
+          color: route.color || (resolvedTheme === 'dark' ? '#3b82f6' : '#2563eb'),
           weight: 5,
           opacity: 0.9,
           lineJoin: 'round',
@@ -179,11 +205,11 @@ export default function LeafletMapView({
         map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
       }
     });
-  }, [route]);
+  }, [route, resolvedTheme]);
 
   return (
     <div
-      className={`relative overflow-hidden w-full h-full bg-zinc-100 dark:bg-zinc-900 ${className}`}
+      className={`relative overflow-hidden w-full h-full bg-zinc-100 dark:bg-zinc-950 ${className}`}
       style={{ height }}
     >
       {/* Map Target Container (Edge-to-edge) */}
