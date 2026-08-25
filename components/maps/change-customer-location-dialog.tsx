@@ -27,7 +27,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   searchPlacesInIndonesia,
-  POPULAR_AGRI_LOCATIONS,
   type LocationSearchResult,
 } from '@/lib/maps/geocoding-helpers';
 
@@ -96,10 +95,6 @@ export function ChangeCustomerLocationDialog({
     };
   }, [searchQuery, open]);
 
-  // If query is short, display popular presets, otherwise display search results
-  const displayedResults =
-    searchQuery.trim().length >= 2 ? searchResults : POPULAR_AGRI_LOCATIONS;
-
   // Handle selecting a place from search results
   const handleSelectPlace = (place: LocationSearchResult) => {
     setCoords([place.lat, place.lng]);
@@ -143,7 +138,7 @@ export function ChangeCustomerLocationDialog({
             </DialogTitle>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Cari alamat tujuan seperti di Google Maps atau pilih sentra pertanian untuk memperbarui rute navigasi kurir.
+            Cari alamat tujuan pengiriman lahan pertanian untuk memperbarui rute navigasi kurir.
           </p>
         </DialogHeader>
 
@@ -152,7 +147,7 @@ export function ChangeCustomerLocationDialog({
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
               <Search className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Cari Alamat / Kota / Sentra Pertanian</span>
+              <span>Cari Alamat / Kota / Lokasi Lahan</span>
             </Label>
 
             <div className="relative">
@@ -179,7 +174,7 @@ export function ChangeCustomerLocationDialog({
           {/* Autocomplete Search Results Dropdown List */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[11px] text-zinc-500 font-semibold px-1">
-              <span>{searchQuery.trim().length >= 2 ? 'Hasil Pencarian Alamat' : 'Rekomendasi Sentra Pertanian'}</span>
+              <span>Hasil Pencarian Alamat</span>
               {isSearching && (
                 <span className="flex items-center gap-1 text-emerald-600 animate-pulse">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -189,8 +184,8 @@ export function ChangeCustomerLocationDialog({
             </div>
 
             <div className="max-h-44 overflow-y-auto space-y-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-1.5 bg-zinc-50/40 dark:bg-zinc-950/40 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-              {displayedResults.length > 0 ? (
-                displayedResults.map((place) => {
+              {searchResults.length > 0 ? (
+                searchResults.map((place) => {
                   const isSelected =
                     Math.abs(coords[0] - place.lat) < 0.0001 &&
                     Math.abs(coords[1] - place.lng) < 0.0001;
@@ -230,30 +225,16 @@ export function ChangeCustomerLocationDialog({
                     </button>
                   );
                 })
-              ) : (
+              ) : searchQuery.trim().length >= 2 ? (
                 <div className="p-4 text-center text-xs text-zinc-500">
                   Tidak ditemukan lokasi dengan kata kunci &quot;{searchQuery}&quot;.
                 </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-zinc-400">
+                  Ketik minimal 2 karakter untuk mencari alamat atau sentra pertanian...
+                </div>
               )}
             </div>
-          </div>
-
-          {/* Quick Filter Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-amber-500" />
-              Cepat:
-            </span>
-            {POPULAR_AGRI_LOCATIONS.slice(0, 4).map((pop) => (
-              <button
-                key={pop.id}
-                type="button"
-                onClick={() => handleSelectPlace(pop)}
-                className="text-[10px] px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 transition cursor-pointer"
-              >
-                {pop.name}
-              </button>
-            ))}
           </div>
 
           {/* Customer Details Form */}

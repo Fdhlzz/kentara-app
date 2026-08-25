@@ -10,66 +10,6 @@ export interface LocationSearchResult {
   province?: string;
 }
 
-/**
- * Daftar lokasi sentra pertanian & kota populer di Indonesia untuk saran cepat
- */
-export const POPULAR_AGRI_LOCATIONS: LocationSearchResult[] = [
-  {
-    id: 'pop-1',
-    name: 'Malino, Gowa (Sentra Benih Kentang)',
-    displayName: 'Kecamatan Tinggimoncong, Malino, Kabupaten Gowa, Sulawesi Selatan',
-    lat: -5.2536,
-    lng: 119.8557,
-    city: 'Gowa',
-    province: 'Sulawesi Selatan',
-  },
-  {
-    id: 'pop-2',
-    name: 'Tamalanrea, Makassar (Sentra Distribusi)',
-    displayName: 'Kecamatan Tamalanrea, Kota Makassar, Sulawesi Selatan',
-    lat: -5.1379367,
-    lng: 119.4357388,
-    city: 'Makassar',
-    province: 'Sulawesi Selatan',
-  },
-  {
-    id: 'pop-3',
-    name: 'Enrekang (Sentra Hortikultura)',
-    displayName: 'Sentra Sayuran Dataran Tinggi, Kabupaten Enrekang, Sulawesi Selatan',
-    lat: -3.5628,
-    lng: 119.7745,
-    city: 'Enrekang',
-    province: 'Sulawesi Selatan',
-  },
-  {
-    id: 'pop-4',
-    name: 'Bantimurung, Maros',
-    displayName: 'Lahan Padi Sawah & Hortikultura Bantimurung, Kabupaten Maros, Sulawesi Selatan',
-    lat: -5.0124,
-    lng: 119.6158,
-    city: 'Maros',
-    province: 'Sulawesi Selatan',
-  },
-  {
-    id: 'pop-5',
-    name: 'Rantepao, Toraja Utara',
-    displayName: 'Sentra Pertanian Dataran Tinggi Rantepao, Kabupaten Toraja Utara, Sulawesi Selatan',
-    lat: -2.9712,
-    lng: 119.8986,
-    city: 'Toraja Utara',
-    province: 'Sulawesi Selatan',
-  },
-  {
-    id: 'pop-6',
-    name: 'Watampone, Bone',
-    displayName: 'Sentra Pertanian Padi & Jagung Watampone, Kabupaten Bone, Sulawesi Selatan',
-    lat: -4.5387,
-    lng: 120.3276,
-    city: 'Bone',
-    province: 'Sulawesi Selatan',
-  },
-];
-
 const geocodeCache = new Map<string, LocationSearchResult[]>();
 
 /**
@@ -80,7 +20,7 @@ export async function searchPlacesInIndonesia(
 ): Promise<LocationSearchResult[]> {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 2) {
-    return POPULAR_AGRI_LOCATIONS;
+    return [];
   }
 
   const cacheKey = trimmed.toLowerCase();
@@ -106,13 +46,7 @@ export async function searchPlacesInIndonesia(
 
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) {
-      // Filter from popular locations if online search yields no matches
-      const localMatches = POPULAR_AGRI_LOCATIONS.filter(
-        (loc) =>
-          loc.name.toLowerCase().includes(cacheKey) ||
-          loc.displayName.toLowerCase().includes(cacheKey)
-      );
-      return localMatches;
+      return [];
     }
 
     const results: LocationSearchResult[] = data.map((item: {
@@ -161,10 +95,6 @@ export async function searchPlacesInIndonesia(
     return results;
   } catch (err) {
     console.warn('[Geocoding Search Error]:', err);
-    return POPULAR_AGRI_LOCATIONS.filter(
-      (loc) =>
-        loc.name.toLowerCase().includes(cacheKey) ||
-        loc.displayName.toLowerCase().includes(cacheKey)
-    );
+    return [];
   }
 }
