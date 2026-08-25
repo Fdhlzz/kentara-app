@@ -27,6 +27,7 @@ import {
   Sparkles,
   ArrowRight,
   PartyPopper,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -319,19 +320,24 @@ export function CourierTaskModal({
         />
       </div>
 
-      {/* 2. Floating Top Driver Cockpit Header */}
+      {/* 2. Floating Top Driver Cockpit Header with Readable Full Name */}
       <div className="relative z-30 pt-3 px-3 max-w-lg mx-auto w-full pointer-events-auto">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 flex-1 min-w-0">
-            <Badge className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 shrink-0">
-              {order.order_code}
-            </Badge>
+          <div className="flex items-center gap-2.5 p-2 px-3 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-xl backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 flex-1 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 flex items-center justify-center font-black text-sm shrink-0 shadow-xs border border-blue-200 dark:border-blue-800">
+              {order.customer_name ? order.customer_name.charAt(0).toUpperCase() : 'P'}
+            </div>
             <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold text-zinc-900 dark:text-white truncate block">
+              <div className="flex items-center gap-1.5">
+                <Badge className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0 shrink-0">
+                  {order.order_code}
+                </Badge>
+                <span className="text-[10px] text-zinc-500 truncate">
+                  {order.shipping_city || 'Makassar'}
+                </span>
+              </div>
+              <span className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white truncate block leading-tight mt-0.5">
                 {order.customer_name}
-              </span>
-              <span className="text-[10px] text-zinc-500 truncate block">
-                {order.shipping_city || 'Makassar'}
               </span>
             </div>
           </div>
@@ -342,7 +348,7 @@ export function CourierTaskModal({
               href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
               target="_blank"
               rel="noreferrer"
-              className="h-10 w-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
+              className="h-10 w-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition active:scale-95 cursor-pointer"
               title="Kirim WhatsApp ke Pembeli"
             >
               <MessageCircle className="h-4 w-4" />
@@ -351,7 +357,7 @@ export function CourierTaskModal({
             {/* Direct Phone Call Button */}
             <a
               href={`tel:${order.customer_phone}`}
-              className="h-10 w-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition active:scale-95"
+              className="h-10 w-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transition active:scale-95 cursor-pointer"
               title="Telepon Pembeli"
             >
               <Phone className="h-4 w-4" />
@@ -361,7 +367,7 @@ export function CourierTaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-10 w-10 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 text-white flex items-center justify-center shadow-lg transition active:scale-95 border border-zinc-700/50"
+              className="h-10 w-10 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 text-white flex items-center justify-center shadow-lg transition active:scale-95 border border-zinc-700/50 cursor-pointer"
               title="Tutup Navigasi"
             >
               <X className="h-4 w-4" />
@@ -441,16 +447,20 @@ export function CourierTaskModal({
         {/* Swipe Handle Indicator */}
         <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto -mt-1" />
 
-        {/* Address & Payment Information (Privacy Enforced: Price shown ONLY for Cash COD) */}
-        <div className="space-y-2">
+        {/* Readable Recipient & Farm Location Card */}
+        <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] uppercase font-black text-zinc-400 block tracking-wider">
-                Lokasi Pengantaran Lahan
-              </span>
-              <p className="text-xs font-bold text-zinc-900 dark:text-white leading-tight flex items-start gap-1 mt-0.5">
-                <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                <span className="line-clamp-2">{order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}</span>
+              <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-zinc-400">
+                <User className="h-3 w-3 text-blue-600" />
+                <span>Penerima / Petani Lahan</span>
+              </div>
+              <p className="text-sm sm:text-base font-black text-zinc-900 dark:text-white mt-0.5 leading-snug">
+                {order.customer_name}
+              </p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                <span className="font-semibold">{order.customer_phone}</span>
               </p>
             </div>
 
@@ -463,77 +473,87 @@ export function CourierTaskModal({
                   Rp {order.total_amount.toLocaleString('id-ID')}
                 </span>
               ) : (
-                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800 inline-block mt-0.5">
+                <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800 inline-block mt-0.5">
                   Lunas Online (Rp 0)
                 </span>
               )}
             </div>
           </div>
 
-          {/* Payment Method Notice Badge */}
-          <div
-            className={`p-2.5 rounded-2xl flex items-center justify-between border ${
-              isCashOrder
-                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60'
-                : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className={`p-1.5 rounded-xl ${
-                  isCashOrder ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
+          <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-xs">
+            <div className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+              <span>Titik Alamat Lahan</span>
+            </div>
+            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5 leading-tight">
+              {order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}
+            </p>
+          </div>
+        </div>
+
+        {/* Payment Method Notice Badge */}
+        <div
+          className={`p-2.5 rounded-2xl flex items-center justify-between border ${
+            isCashOrder
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60'
+              : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className={`p-1.5 rounded-xl ${
+                isCashOrder ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
+              }`}
+            >
+              {isCashOrder ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+            </div>
+            <div>
+              <span
+                className={`text-xs font-black block ${
+                  isCashOrder
+                    ? 'text-amber-900 dark:text-amber-200'
+                    : 'text-emerald-900 dark:text-emerald-200'
                 }`}
               >
-                {isCashOrder ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-              </div>
-              <div>
-                <span
-                  className={`text-xs font-black block ${
-                    isCashOrder
-                      ? 'text-amber-900 dark:text-amber-200'
-                      : 'text-emerald-900 dark:text-emerald-200'
-                  }`}
-                >
-                  {isCashOrder
-                    ? `💵 Tagih Uang Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
-                    : '💳 Lunas Online (Jangan Minta Uang)'}
-                </span>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
-                  {isCashOrder
-                    ? `Wajib kumpulkan uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli saat serah terima.`
-                    : 'Pesanan telah dibayar lunas online. Anda tidak perlu menagih uang kepada pembeli.'}
-                </span>
-              </div>
+                {isCashOrder
+                  ? `💵 Tagih Uang Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
+                  : '💳 Lunas Online (Jangan Minta Uang)'}
+              </span>
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
+                {isCashOrder
+                  ? `Wajib kumpulkan uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli saat serah terima.`
+                  : 'Pesanan telah dibayar lunas online. Anda tidak perlu menagih uang kepada pembeli.'}
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Expandable Ordered Seed Items (Privacy Enforced: Subtotals hidden) */}
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
-            <button
-              type="button"
-              onClick={() => setIsItemsExpanded(!isItemsExpanded)}
-              className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
-            >
-              <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
-                <Package className="h-3.5 w-3.5 text-blue-600" />
-                <span>Rincian Muatan ({order.items?.length || 0} varietas benih)</span>
-              </span>
-              {isItemsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
+        {/* Expandable Ordered Seed Items */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
+          <button
+            type="button"
+            onClick={() => setIsItemsExpanded(!isItemsExpanded)}
+            className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
+              <Package className="h-3.5 w-3.5 text-blue-600" />
+              <span>Rincian Muatan ({order.items?.length || 0} varietas benih)</span>
+            </span>
+            {isItemsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
 
-            {isItemsExpanded && (
-              <div className="p-3 pt-0 border-t border-zinc-200/60 dark:border-zinc-800 space-y-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
-                {order.items?.map((item, idx) => (
-                  <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
-                    <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
-                    <span className="font-semibold text-zinc-500">
-                      Muatan Siap Serah
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {isItemsExpanded && (
+            <div className="p-3 pt-0 border-t border-zinc-200/60 dark:border-zinc-800 space-y-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
+              {order.items?.map((item, idx) => (
+                <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
+                  <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
+                  <span className="font-semibold text-zinc-500">
+                    Muatan Siap Serah
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 5. Interactive Mobile Swipe-to-Action Buttons & Proximity Gate */}
@@ -631,7 +651,7 @@ export function CourierTaskModal({
               </span>
             </div>
 
-            {/* Checkbox confirmation */}
+            {/* Checkbox confirmation with Readable Full Name */}
             <label className="flex items-start gap-3 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
               <input
                 type="checkbox"
@@ -642,7 +662,7 @@ export function CourierTaskModal({
               <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 leading-snug">
                 Saya mengonfirmasi telah menerima uang tunai pas sebesar{' '}
                 <strong>Rp {order.total_amount.toLocaleString('id-ID')}</strong> dari{' '}
-                {order.customer_name}.
+                <strong>{order.customer_name}</strong>.
               </span>
             </label>
 
@@ -655,7 +675,7 @@ export function CourierTaskModal({
                 rows={2}
                 value={cashNotes}
                 onChange={(e) => setCashNotes(e.target.value)}
-                placeholder="Contoh: Diterima uang pas Rp 1.285.000 oleh Bpk. Daeng Sikki di lokasi..."
+                placeholder={`Contoh: Diterima uang pas Rp ${order.total_amount.toLocaleString('id-ID')} oleh ${order.customer_name} di lokasi...`}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
               />
             </div>
@@ -713,7 +733,7 @@ export function CourierTaskModal({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Delivery Summary Box (Privacy Enforced) */}
+          {/* Delivery Summary Box (Readable Full Name) */}
           <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800 text-left space-y-2.5 text-xs">
             <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-800">
               <span className="text-zinc-500 font-medium">Kode Pesanan:</span>
@@ -724,7 +744,7 @@ export function CourierTaskModal({
 
             <div className="flex justify-between items-center">
               <span className="text-zinc-500">Penerima Lahan:</span>
-              <span className="font-bold text-zinc-900 dark:text-white">{order.customer_name}</span>
+              <span className="font-black text-sm text-zinc-900 dark:text-white">{order.customer_name}</span>
             </div>
 
             <div className="flex justify-between items-center">

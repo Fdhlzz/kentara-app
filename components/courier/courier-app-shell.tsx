@@ -173,9 +173,14 @@ export function CourierAppShell({ profile, orders = [] }: CourierAppShellProps) 
                                 : '📦 Siap Dimulai'}
                             </Badge>
                           </div>
-                          <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block mt-1">
-                            {task.customer_name}
-                          </span>
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="h-7 w-7 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-black shrink-0 border border-blue-200 dark:border-blue-900">
+                              {task.customer_name ? task.customer_name.charAt(0).toUpperCase() : 'P'}
+                            </div>
+                            <span className="text-sm font-black text-zinc-900 dark:text-white leading-tight">
+                              {task.customer_name}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="text-right">
