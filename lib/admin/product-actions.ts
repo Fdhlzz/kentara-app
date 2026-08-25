@@ -119,13 +119,21 @@ export async function getAdminProductStats(): Promise<AdminProductStats> {
 export async function getAdminProductsList(): Promise<Product[]> {
   try {
     const supabase = await createClient();
+
+    // 1. Try RPC function first
+    const { data: rpcData, error: rpcError } = await supabase.rpc('admin_list_products');
+    if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+      return rpcData as Product[];
+    }
+
+    // 2. Direct table select fallback
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error || !data) {
-      console.error('[getAdminProductsList Error]:', error);
+      console.error('[getAdminProductsList Error]:', error || rpcError);
       return [];
     }
 
@@ -135,6 +143,7 @@ export async function getAdminProductsList(): Promise<Product[]> {
     return [];
   }
 }
+
 
 /**
  * Server Action: Tambah Benih Kentang Baru

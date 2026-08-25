@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useRef } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -21,12 +21,11 @@ import {
   Package,
   LayoutGrid,
   List,
-  UploadCloud,
   Upload,
   Image as ImageIcon,
-  Check,
-  RotateCcw,
   Cloud,
+  X,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,42 +49,29 @@ import {
   uploadProductImageAction,
 } from '@/lib/admin/product-actions';
 
-// Preset photo options for quick fallback selection
-const PHOTO_PRESETS = [
-  {
-    name: 'Granola L / Meja (Kuning)',
-    url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    name: 'Atlantic / Industri Keripik',
-    url: 'https://images.unsplash.com/photo-1590165482129-1b8b27698780?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    name: 'Mini Tuber G0 / Aeroponik',
-    url: 'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    name: 'Medians / Tahan Busuk Daun',
-    url: 'https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    name: 'Tenggo / Dataran Sedang',
-    url: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=800&q=80',
-  },
-];
-
 interface ProductManagerProps {
   initialProducts: Product[];
   stats: AdminProductStats;
 }
 
-export function ProductManager({ initialProducts, stats: initialStats }: ProductManagerProps) {
+export function ProductManager({ initialProducts = [], stats: initialStats }: ProductManagerProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [stats, setStats] = useState<AdminProductStats>(initialStats);
   const [isPending, startTransition] = useTransition();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Sync state if server revalidates props
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    if (initialStats) {
+      setStats(initialStats);
+    }
+  }, [initialStats]);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,7 +108,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
   const [formPotentialYield, setFormPotentialYield] = useState('28 - 35 Ton/Ha');
   const [formResilience, setFormResilience] = useState('Tahan Virus PVX/PVY & Hawar Daun');
   const [formDescription, setFormDescription] = useState('');
-  const [formImageUrl, setFormImageUrl] = useState(PHOTO_PRESETS[0].url);
+  const [formImageUrl, setFormImageUrl] = useState('');
   const [formIsFeatured, setFormIsFeatured] = useState(false);
   const [formIsActive, setFormIsActive] = useState(true);
 
@@ -134,7 +120,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setFormName('');
     setFormVariety('Granola L');
     setFormSeedClass('G2');
-    setFormCertNumber('BPSB-TPH/JB/KNT-2026/088');
+    setFormCertNumber('');
     setFormSizeCategory('M (30-50g)');
     setFormSproutStatus('siap_tanam');
     setFormPrice(38500);
@@ -147,8 +133,8 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setFormHarvestDays('95 - 105 HST');
     setFormPotentialYield('28 - 35 Ton/Ha');
     setFormResilience('Tahan Virus PVX/PVY & Hawar Daun');
-    setFormDescription('Benih kentang unggulan bersertifikasi BPSB resmi dengan kemurnian genetik tinggi dan tunas siap tanam.');
-    setFormImageUrl(PHOTO_PRESETS[0].url);
+    setFormDescription('');
+    setFormImageUrl('');
     setFormIsFeatured(false);
     setFormIsActive(true);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -174,7 +160,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setFormPotentialYield(product.potential_yield || '');
     setFormResilience(product.resilience || '');
     setFormDescription(product.description || '');
-    setFormImageUrl(product.image_url || PHOTO_PRESETS[0].url);
+    setFormImageUrl(product.image_url || '');
     setFormIsFeatured(product.is_featured);
     setFormIsActive(product.is_active);
     setIsEditOpen(true);
@@ -245,11 +231,12 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
   // Filter & Sort Products
   const filteredProducts = products
     .filter((product) => {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       const matchSearch =
-        product.name.toLowerCase().includes(q) ||
-        product.variety.toLowerCase().includes(q) ||
-        product.origin_location.toLowerCase().includes(q) ||
+        !q ||
+        (product.name && product.name.toLowerCase().includes(q)) ||
+        (product.variety && product.variety.toLowerCase().includes(q)) ||
+        (product.origin_location && product.origin_location.toLowerCase().includes(q)) ||
         (product.cert_number && product.cert_number.toLowerCase().includes(q));
 
       const matchVariety = selectedVariety === 'all' || product.variety === selectedVariety;
@@ -528,7 +515,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
           </div>
           <div className="mt-2">
             <span className="text-2xl font-extrabold text-zinc-900 dark:text-white">
-              {stats.totalProducts}
+              {stats?.totalProducts ?? products.length}
             </span>
             <p className="text-[11px] text-zinc-400 mt-0.5">Katalog varietas kentang</p>
           </div>
@@ -543,7 +530,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
           </div>
           <div className="mt-2">
             <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              {stats.activeProducts}
+              {stats?.activeProducts ?? products.filter((p) => p.is_active).length}
             </span>
             <p className="text-[11px] text-zinc-400 mt-0.5">Tampil di etalase pembeli</p>
           </div>
@@ -558,7 +545,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
           </div>
           <div className="mt-2">
             <span className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
-              {stats.featuredProducts}
+              {stats?.featuredProducts ?? products.filter((p) => p.is_featured).length}
             </span>
             <p className="text-[11px] text-zinc-400 mt-0.5">Disorot di beranda</p>
           </div>
@@ -573,7 +560,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
           </div>
           <div className="mt-2">
             <span className="text-xl font-extrabold text-blue-600 dark:text-blue-400">
-              {stats.totalStockKg.toLocaleString('id-ID')} <span className="text-xs font-normal">Kg</span> / {stats.totalStockKnol.toLocaleString('id-ID')} <span className="text-xs font-normal">Knol</span>
+              {(stats?.totalStockKg ?? products.filter(p => p.unit === 'kg').reduce((s, p) => s + (p.stock || 0), 0)).toLocaleString('id-ID')} <span className="text-xs font-normal">Kg</span> / {(stats?.totalStockKnol ?? products.filter(p => p.unit === 'knol').reduce((s, p) => s + (p.stock || 0), 0)).toLocaleString('id-ID')} <span className="text-xs font-normal">Knol</span>
             </span>
             <p className="text-[11px] text-zinc-400 mt-0.5">Stok gudang &amp; penangkaran</p>
           </div>
@@ -592,21 +579,33 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
                 Katalog Manajemen Benih Kentang
               </h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Kelola varietas, generasi G0-G4, sertifikasi BPSB, dan unggah foto ke Supabase Storage
+                Kelola varietas, generasi G0-G4, sertifikasi BPSB, dan foto benih di Supabase Storage
               </p>
             </div>
           </div>
 
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsCreateOpen(true);
-            }}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl gap-2 shadow-xs min-h-[44px]"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Tambah Benih Kentang</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.refresh()}
+              className="rounded-xl h-10 px-3 text-xs font-semibold gap-1.5"
+              title="Muat Ulang Data"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Segarkan</span>
+            </Button>
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsCreateOpen(true);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl gap-2 shadow-xs min-h-[40px]"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Tambah Benih Kentang</span>
+            </Button>
+          </div>
         </div>
 
         {/* Search & Filter Row */}
@@ -720,24 +719,41 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
             <Sprout className="h-8 w-8" />
           </div>
           <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-            Tidak ada produk benih kentang yang sesuai
+            {products.length === 0
+              ? 'Belum ada data produk benih kentang di sistem'
+              : 'Tidak ada produk benih kentang yang sesuai filter'}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
-            Coba ubah kata kunci pencarian atau reset filter untuk melihat katalog benih lainnya.
+            {products.length === 0
+              ? 'Klik tombol "Tambah Benih Kentang" untuk menambahkan produk benih pertama Anda.'
+              : 'Coba ubah kata kunci pencarian atau reset filter untuk melihat katalog benih lainnya.'}
           </p>
-          <Button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedVariety('all');
-              setSelectedClass('all');
-              setSelectedSprout('all');
-              setSelectedStockStatus('all');
-            }}
-            variant="outline"
-            className="mt-4 text-xs font-semibold rounded-xl"
-          >
-            Reset Filter
-          </Button>
+          {products.length > 0 ? (
+            <Button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedVariety('all');
+                setSelectedClass('all');
+                setSelectedSprout('all');
+                setSelectedStockStatus('all');
+              }}
+              variant="outline"
+              className="mt-4 text-xs font-semibold rounded-xl"
+            >
+              Reset Filter
+            </Button>
+          ) : (
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsCreateOpen(true);
+              }}
+              className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah Benih Sekarang
+            </Button>
+          )}
         </Card>
       ) : viewMode === 'grid' ? (
         /* GRID VIEW */
@@ -756,13 +772,20 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               <div>
                 {/* Image Header with Badges */}
                 <div className="relative h-44 w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                  <Image
-                    src={product.image_url || PHOTO_PRESETS[0].url}
-                    alt={product.name}
-                    fill
-                    className="object-cover transition duration-300 hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
+                  {product.image_url ? (
+                    <Image
+                      src={product.image_url}
+                      alt={product.name}
+                      fill
+                      className="object-cover transition duration-300 hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 dark:text-zinc-500 gap-1 bg-zinc-100 dark:bg-zinc-800">
+                      <Sprout className="h-8 w-8 text-emerald-600/50" />
+                      <span className="text-[11px] font-medium">Foto Belum Diunggah</span>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-black/20" />
 
                   {/* Top Badges */}
@@ -938,12 +961,18 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className="relative h-10 w-10 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0">
-                        <Image
-                          src={product.image_url || PHOTO_PRESETS[0].url}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                        />
+                        {product.image_url ? (
+                          <Image
+                            src={product.image_url}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Sprout className="h-5 w-5 text-emerald-600" />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <span className="font-bold text-zinc-900 dark:text-white line-clamp-1">
@@ -1308,7 +1337,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
             <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide flex items-center gap-1.5">
-                  <UploadCloud className="h-4 w-4 text-emerald-600" />
+                  <Upload className="h-4 w-4 text-emerald-600" />
                   <span>4. Unggah Foto Benih (Supabase Storage: product-images)</span>
                 </h4>
                 {isSupabaseHosted && (
@@ -1322,7 +1351,17 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                 <div className="relative h-28 w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                   {formImageUrl ? (
-                    <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                    <>
+                      <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setFormImageUrl('')}
+                        title="Hapus Foto"
+                        className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white hover:bg-rose-600 transition"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs">
                       <ImageIcon className="h-6 w-6 mb-1" />
@@ -1370,32 +1409,6 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
                     placeholder="Atau tempel URL gambar..."
                     className="w-full px-3 py-1.5 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
                   />
-                </div>
-              </div>
-
-              {/* Preset Quick Chips */}
-              <div>
-                <label className="block text-[11px] font-semibold text-zinc-500 mb-1.5">
-                  Atau pilih contoh preset varietas:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  {PHOTO_PRESETS.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setFormImageUrl(preset.url)}
-                      className={`flex items-center gap-1.5 p-1 rounded-xl border text-left text-[10px] font-medium transition ${
-                        formImageUrl === preset.url
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ring-1 ring-emerald-500'
-                          : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300'
-                      }`}
-                    >
-                      <div className="relative h-5 w-5 rounded-md overflow-hidden shrink-0 bg-zinc-100">
-                        <Image src={preset.url} alt={preset.name} fill className="object-cover" />
-                      </div>
-                      <span className="truncate">{preset.name}</span>
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -1628,8 +1641,8 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
             <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide flex items-center gap-1.5">
-                  <UploadCloud className="h-4 w-4 text-emerald-600" />
-                  <span>Foto Benih (Supabase Storage)</span>
+                  <Upload className="h-4 w-4 text-emerald-600" />
+                  <span>Foto Benih (Supabase Storage: product-images)</span>
                 </h4>
                 {isSupabaseHosted && (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px]">
@@ -1641,7 +1654,17 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                 <div className="relative h-28 w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                   {formImageUrl ? (
-                    <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                    <>
+                      <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setFormImageUrl('')}
+                        title="Hapus Foto"
+                        className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white hover:bg-rose-600 transition"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs">
                       <ImageIcon className="h-6 w-6 mb-1" />
@@ -1760,12 +1783,19 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
           {selectedProduct && (
             <div className="space-y-4">
               <div className="relative h-48 w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                <Image
-                  src={selectedProduct.image_url || PHOTO_PRESETS[0].url}
-                  alt={selectedProduct.name}
-                  fill
-                  className="object-cover"
-                />
+                {selectedProduct.image_url ? (
+                  <Image
+                    src={selectedProduct.image_url}
+                    alt={selectedProduct.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-zinc-400 gap-1">
+                    <Sprout className="h-10 w-10 text-emerald-600/50" />
+                    <span className="text-xs">Foto Belum Tersedia</span>
+                  </div>
+                )}
                 <div className="absolute top-3 left-3 flex items-center gap-2">
                   <Badge className={`text-xs font-bold px-2 py-0.5 border ${getClassBadge(selectedProduct.seed_class)}`}>
                     Kelas {selectedProduct.seed_class}
