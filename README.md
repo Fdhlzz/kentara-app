@@ -90,9 +90,19 @@ Aplikasi Kentara dilengkapi dengan konfigurasi PWA standar:
 
 ---
 
-## 🧪 Skrip Perintah
+## 🧪 Pengujian Unit & Skrip Perintah (Unit Testing)
 
+Aplikasi Kentara menerapkan standar **Test-Driven Development (TDD)** dengan rangkaian unit test otomatis menggunakan **Vitest**:
+
+* `npm test` — Menjalankan seluruh rangkaian unit test (`tests/unit/`)
 * `npm run dev` — Menjalankan server pengembangan Next.js
 * `npm run build` — Membangun build produksi untuk deployment
 * `npm run lint` — Menjalankan pemeriksaan kode dengan ESLint
 * `npx tsc --noEmit` — Menjalankan pemeriksaan tipe TypeScript
+
+### Modul Pengujian yang Dicakup (`tests/unit/`):
+1. **`products.test.ts`** — Validasi varietas benih kentang, stok, kelas sertifikasi (`G0`-`G3`), dan kalkulasi metrik katalog.
+2. **`orders.test.ts`** — Kode pesanan, kalkulasi keranjang belanja multi-item, pemotongan stok otomatis saat bayar lunas, dan lifecycle status.
+3. **`payments.test.ts`** — Gerbang pembayaran online (Midtrans), verifikasi pembayaran tunai (COD), dan agregasi omzet keuangan.
+4. **`courier.test.ts`** — Penugasan mitra kurir pengantar, validasi peran, dan pelacakan daftar tugas logistik.
+5. **`notifications.test.ts`** — Notifikasi real-time in-app dan payload Web Push background PWA.
