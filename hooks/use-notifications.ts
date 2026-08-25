@@ -67,11 +67,45 @@ export function useNotifications({
     }
   }, [role, userId]);
 
-  // Initial fetch and polling loop
+  // Initial fetch and visibility-aware polling loop
   useEffect(() => {
     refreshNotifications();
-    const interval = setInterval(refreshNotifications, pollInterval);
-    return () => clearInterval(interval);
+
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (!intervalId && typeof window !== 'undefined') {
+        intervalId = setInterval(refreshNotifications, pollInterval);
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        refreshNotifications();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    startPolling();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      stopPolling();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
   }, [refreshNotifications, pollInterval]);
 
   // Request native PWA / Browser Web Push Notification permission & subscribe

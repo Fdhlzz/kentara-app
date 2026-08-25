@@ -314,25 +314,42 @@ export function CartProvider({
 
   const grandTotal = subtotal + estimatedShipping;
 
+  const cartContextValue = useMemo<CartContextType>(
+    () => ({
+      items,
+      totalCount,
+      subtotal,
+      totalWeightKg,
+      estimatedShipping,
+      grandTotal,
+      isCartOpen,
+      setIsCartOpen,
+      addToCart,
+      updateQty,
+      removeFromCart,
+      clearCart,
+      getItemQty,
+      isLoading,
+    }),
+    [
+      items,
+      totalCount,
+      subtotal,
+      totalWeightKg,
+      estimatedShipping,
+      grandTotal,
+      isCartOpen,
+      addToCart,
+      updateQty,
+      removeFromCart,
+      clearCart,
+      getItemQty,
+      isLoading,
+    ]
+  );
+
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        totalCount,
-        subtotal,
-        totalWeightKg,
-        estimatedShipping,
-        grandTotal,
-        isCartOpen,
-        setIsCartOpen,
-        addToCart,
-        updateQty,
-        removeFromCart,
-        clearCart,
-        getItemQty,
-        isLoading,
-      }}
-    >
+    <CartContext.Provider value={cartContextValue}>
       {children}
     </CartContext.Provider>
   );

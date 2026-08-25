@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createSnapTransaction } from '@/lib/midtrans/server';
@@ -469,8 +470,9 @@ export async function markOrderPaymentSuccessAction(
 
 /**
  * Admin: Get Order Stats
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminOrderStats(): Promise<AdminOrderStats> {
+export const getAdminOrderStats = cache(async (): Promise<AdminOrderStats> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -504,18 +506,42 @@ export async function getAdminOrderStats(): Promise<AdminOrderStats> {
       };
     }
 
+    let pendingPaymentOrders = 0;
+    let paidOrders = 0;
+    let inDeliveryOrders = 0;
+    let completedOrders = 0;
+    let cancelledOrders = 0;
+    let totalRevenue = 0;
+
+    for (const o of orders) {
+      const isPaid = ['settlement', 'paid', 'capture', 'success'].includes(o.payment_status);
+      if (o.payment_status === 'pending') {
+        pendingPaymentOrders++;
+      }
+      if (isPaid) {
+        totalRevenue += o.total_amount || 0;
+        if (!o.courier_id) {
+          paidOrders++;
+        }
+      }
+      if (o.courier_id && (o.order_status === 'diproses' || o.order_status === 'dikirim')) {
+        inDeliveryOrders++;
+      }
+      if (o.order_status === 'selesai') {
+        completedOrders++;
+      } else if (o.order_status === 'dibatalkan') {
+        cancelledOrders++;
+      }
+    }
+
     return {
       totalOrders: orders.length,
-      pendingPaymentOrders: orders.filter((o) => o.payment_status === 'pending').length,
-      paidOrders: orders.filter(
-        (o) => ['settlement', 'paid', 'capture', 'success'].includes(o.payment_status) && !o.courier_id
-      ).length,
-      inDeliveryOrders: orders.filter((o) => o.courier_id && ['diproses', 'dikirim'].includes(o.order_status)).length,
-      completedOrders: orders.filter((o) => o.order_status === 'selesai').length,
-      cancelledOrders: orders.filter((o) => o.order_status === 'dibatalkan').length,
-      totalRevenue: orders
-        .filter((o) => ['settlement', 'paid', 'capture', 'success'].includes(o.payment_status))
-        .reduce((sum, o) => sum + (o.total_amount || 0), 0),
+      pendingPaymentOrders,
+      paidOrders,
+      inDeliveryOrders,
+      completedOrders,
+      cancelledOrders,
+      totalRevenue,
     };
   } catch (err) {
     console.error('[getAdminOrderStats Error]:', err);
@@ -529,12 +555,13 @@ export async function getAdminOrderStats(): Promise<AdminOrderStats> {
       totalRevenue: 0,
     };
   }
-}
+});
 
 /**
  * Admin: Get List of All Orders with joined items and courier name
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminOrdersList(): Promise<Order[]> {
+export const getAdminOrdersList = cache(async (): Promise<Order[]> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -569,7 +596,7 @@ export async function getAdminOrdersList(): Promise<Order[]> {
     console.error('[getAdminOrdersList Error]:', err);
     return [];
   }
-}
+});
 
 /**
  * Admin Action: Assign Courier to an Order

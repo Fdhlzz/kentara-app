@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { sendNotificationAction } from '@/lib/notifications/notification-actions';
@@ -34,8 +35,9 @@ async function verifyAdminRole() {
 
 /**
  * Admin: Mengambil ringkasan statistik pembayaran (Gateway & Cash)
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminPaymentStats(): Promise<AdminPaymentStats> {
+export const getAdminPaymentStats = cache(async (): Promise<AdminPaymentStats> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -73,26 +75,51 @@ export async function getAdminPaymentStats(): Promise<AdminPaymentStats> {
       };
     }
 
-    const completed = payments.filter((p) =>
-      ['completed', 'settlement', 'paid', 'success'].includes(p.payment_status)
-    );
+    let completedPayments = 0;
+    let pendingPayments = 0;
+    let failedPayments = 0;
+    let gatewayPaymentsCount = 0;
+    let cashPaymentsCount = 0;
+    let totalRevenue = 0;
+    let gatewayRevenue = 0;
+    let cashRevenue = 0;
+
+    for (const p of payments) {
+      const isCompleted = ['completed', 'settlement', 'paid', 'success'].includes(p.payment_status);
+      const isFailed = ['failed', 'expire', 'cancel', 'deny'].includes(p.payment_status);
+
+      if (isCompleted) {
+        completedPayments++;
+        const amt = p.amount || 0;
+        totalRevenue += amt;
+        if (p.payment_method_type === 'gateway') {
+          gatewayRevenue += amt;
+        } else if (p.payment_method_type === 'cash') {
+          cashRevenue += amt;
+        }
+      } else if (p.payment_status === 'pending') {
+        pendingPayments++;
+      } else if (isFailed) {
+        failedPayments++;
+      }
+
+      if (p.payment_method_type === 'gateway') {
+        gatewayPaymentsCount++;
+      } else if (p.payment_method_type === 'cash') {
+        cashPaymentsCount++;
+      }
+    }
 
     return {
       totalPayments: payments.length,
-      completedPayments: completed.length,
-      pendingPayments: payments.filter((p) => p.payment_status === 'pending').length,
-      failedPayments: payments.filter((p) =>
-        ['failed', 'expire', 'cancel', 'deny'].includes(p.payment_status)
-      ).length,
-      gatewayPaymentsCount: payments.filter((p) => p.payment_method_type === 'gateway').length,
-      cashPaymentsCount: payments.filter((p) => p.payment_method_type === 'cash').length,
-      totalRevenue: completed.reduce((sum, p) => sum + (p.amount || 0), 0),
-      gatewayRevenue: completed
-        .filter((p) => p.payment_method_type === 'gateway')
-        .reduce((sum, p) => sum + (p.amount || 0), 0),
-      cashRevenue: completed
-        .filter((p) => p.payment_method_type === 'cash')
-        .reduce((sum, p) => sum + (p.amount || 0), 0),
+      completedPayments,
+      pendingPayments,
+      failedPayments,
+      gatewayPaymentsCount,
+      cashPaymentsCount,
+      totalRevenue,
+      gatewayRevenue,
+      cashRevenue,
     };
   } catch (err) {
     console.error('[getAdminPaymentStats Error]:', err);
@@ -108,12 +135,13 @@ export async function getAdminPaymentStats(): Promise<AdminPaymentStats> {
       cashRevenue: 0,
     };
   }
-}
+});
 
 /**
  * Admin: Mengambil seluruh riwayat transaksi pembayaran
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminPaymentsList(): Promise<Payment[]> {
+export const getAdminPaymentsList = cache(async (): Promise<Payment[]> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -165,7 +193,7 @@ export async function getAdminPaymentsList(): Promise<Payment[]> {
     console.error('[getAdminPaymentsList Error]:', err);
     return [];
   }
-}
+});
 
 /**
  * Admin: Konfirmasi Pelunasan Tunai (Cash / COD Received)

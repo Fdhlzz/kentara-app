@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import {
   Sprout,
   ShoppingBag,
@@ -38,9 +39,22 @@ import {
   createOrderAndGetSnapAction,
   markOrderPaymentSuccessAction,
 } from '@/lib/admin/order-actions';
-import { LocationPicker } from '@/components/maps/location-picker';
 import type { Product } from '@/types/product';
 import type { CreateOrderItemInput } from '@/types/order';
+
+// Lazy load LocationPicker to reduce initial page bundle
+const DynamicLocationPicker = dynamic(
+  () => import('@/components/maps/location-picker').then((mod) => mod.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 text-xs text-zinc-400">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+        <span>Memuat Pemilih Peta Lokasi...</span>
+      </div>
+    ),
+  }
+);
 
 interface PotatoSeedCatalogProps {
   products: Product[];
@@ -76,7 +90,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
   const { openSnapPopup } = useMidtransSnap();
 
   // Helper to add item to cart
-  const addToCart = (product: Product, qtyToAdd = 1) => {
+  const addToCart = useCallback((product: Product, qtyToAdd = 1) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -92,40 +106,39 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
     toast.success(`${product.name} dimasukkan ke keranjang`, {
       description: `Klik keranjang di bawah untuk checkout.`,
     });
-  };
+  }, []);
 
   // Helper to buy single product immediately
-  const buyNow = (product: Product) => {
+  const buyNow = useCallback((product: Product) => {
     setCart([{ product, quantity: product.min_order || 1 }]);
     setIsCheckoutOpen(true);
-  };
+  }, []);
 
   // Update quantity in cart
-  const updateQuantity = (productId: string, newQty: number) => {
-    if (newQty <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((item) =>
+  const updateQuantity = useCallback((productId: string, newQty: number) => {
+    setCart((prev) => {
+      if (newQty <= 0) {
+        return prev.filter((item) => item.product.id !== productId);
+      }
+      return prev.map((item) =>
         item.product.id === productId ? { ...item, quantity: newQty } : item
-      )
-    );
-  };
+      );
+    });
+  }, []);
 
   // Remove from cart
-  const removeFromCart = (productId: string) => {
+  const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
-  };
+  }, []);
 
-  // Calculations
-  const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
+  // Memoized Calculations
+  const totalItemsCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+    [cart]
   );
-  const shippingCost = cart.length > 0 ? 25000 : 0;
-  const grandTotal = subtotal + shippingCost;
+  const shippingCost = useMemo(() => (cart.length > 0 ? 25000 : 0), [cart.length]);
+  const grandTotal = useMemo(() => subtotal + shippingCost, [subtotal, shippingCost]);
 
   // Handle Checkout
   const handleProceedCheckout = async (e: React.FormEvent) => {
@@ -555,7 +568,7 @@ export function PotatoSeedCatalog({ products, currentUser }: PotatoSeedCatalogPr
 
               {/* Pinpoint Location Picker with Leaflet & Current Location Button */}
               <div className="pt-1">
-                <LocationPicker
+                <DynamicLocationPicker
                   coords={customerCoords}
                   onCoordsChange={setCustomerCoords}
                   height="190px"

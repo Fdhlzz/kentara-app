@@ -36,14 +36,27 @@ import { toast } from 'sonner';
 import { ProductImage } from '@/components/petani/product-image';
 import { useCart } from '@/lib/cart/cart-context';
 import { useMidtransSnap } from '@/hooks/use-midtrans-snap';
+import dynamic from 'next/dynamic';
 import {
   createOrderAndGetSnapAction,
   markOrderPaymentSuccessAction,
 } from '@/lib/admin/order-actions';
-import { LocationPicker } from '@/components/maps/location-picker';
 import type { Product } from '@/types/product';
 import type { UserProfile } from '@/types/auth';
 import type { CreateOrderItemInput } from '@/types/order';
+
+// Lazy load LocationPicker to keep main bundle lean
+const DynamicLocationPicker = dynamic(
+  () => import('@/components/maps/location-picker').then((mod) => mod.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 text-xs text-zinc-400">
+        <span>Memuat Pemilih Peta Lokasi...</span>
+      </div>
+    ),
+  }
+);
 
 interface PetaniCatalogViewProps {
   products: Product[];
@@ -773,7 +786,7 @@ export function PetaniCatalogView({
 
               {/* Pinpoint Location Picker with Leaflet & Current Location Button */}
               <div className="pt-1">
-                <LocationPicker
+                <DynamicLocationPicker
                   coords={customerCoords}
                   onCoordsChange={setCustomerCoords}
                   height="190px"

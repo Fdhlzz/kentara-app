@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { UserProfile } from '@/types/auth';
@@ -46,8 +47,9 @@ async function verifyAdminRole() {
 
 /**
  * Mengambil statistik ringkasan pengguna untuk Admin Dashboard
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
+export const getAdminDashboardStats = cache(async (): Promise<AdminDashboardStats> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -76,12 +78,13 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     console.error('[getAdminDashboardStats Error]:', err);
     return { totalPetani: 0, totalKurir: 0, totalAdmin: 0, totalUsers: 0 };
   }
-}
+});
 
 /**
  * Mengambil daftar seluruh akun Kurir dengan email
+ * Di-memoize per-request dengan React cache
  */
-export async function getCouriersList(): Promise<CourierUser[]> {
+export const getCouriersList = cache(async (): Promise<CourierUser[]> => {
   try {
     const { supabase } = await verifyAdminRole();
 
@@ -123,7 +126,7 @@ export async function getCouriersList(): Promise<CourierUser[]> {
     console.error('[getCouriersList Error]:', err);
     return [];
   }
-}
+});
 
 /**
  * Server Action untuk membuat akun Kurir baru

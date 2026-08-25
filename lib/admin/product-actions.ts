@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type {
@@ -51,8 +52,9 @@ async function verifyAdminRole() {
 
 /**
  * Mengambil ringkasan statistik produk benih kentang
+ * Di-memoize per-request dengan React cache
  */
-export async function getAdminProductStats(): Promise<AdminProductStats> {
+export const getAdminProductStats = cache(async (): Promise<AdminProductStats> => {
   try {
     const supabase = await createClient();
     const { data: rpcStats, error } = await supabase.rpc('admin_get_product_stats');
@@ -86,18 +88,40 @@ export async function getAdminProductStats(): Promise<AdminProductStats> {
       };
     }
 
+    let activeProducts = 0;
+    let lowStockProducts = 0;
+    let outOfStockProducts = 0;
+    let featuredProducts = 0;
+    let totalStockKg = 0;
+    let totalStockKnol = 0;
+
+    for (const p of products) {
+      if (p.is_active) {
+        activeProducts++;
+        if (p.stock === 0) {
+          outOfStockProducts++;
+        } else if (p.stock <= 50 && p.stock > 0) {
+          lowStockProducts++;
+        }
+      }
+      if (p.is_featured) {
+        featuredProducts++;
+      }
+      if (p.unit === 'kg') {
+        totalStockKg += p.stock || 0;
+      } else if (p.unit === 'knol') {
+        totalStockKnol += p.stock || 0;
+      }
+    }
+
     return {
       totalProducts: products.length,
-      activeProducts: products.filter((p) => p.is_active).length,
-      lowStockProducts: products.filter((p) => p.is_active && p.stock <= 50 && p.stock > 0).length,
-      outOfStockProducts: products.filter((p) => p.is_active && p.stock === 0).length,
-      featuredProducts: products.filter((p) => p.is_featured).length,
-      totalStockKg: products
-        .filter((p) => p.unit === 'kg')
-        .reduce((sum, p) => sum + (p.stock || 0), 0),
-      totalStockKnol: products
-        .filter((p) => p.unit === 'knol')
-        .reduce((sum, p) => sum + (p.stock || 0), 0),
+      activeProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      featuredProducts,
+      totalStockKg,
+      totalStockKnol,
     };
   } catch (err) {
     console.error('[getAdminProductStats Error]:', err);
@@ -111,12 +135,13 @@ export async function getAdminProductStats(): Promise<AdminProductStats> {
       totalStockKnol: 0,
     };
   }
-}
+});
 
 /**
  * Mengambil seluruh daftar produk benih kentang untuk Admin
+ * Di-memoize per-request dengan React cache untuk mencegah duplikasi fetch
  */
-export async function getAdminProductsList(): Promise<Product[]> {
+export const getAdminProductsList = cache(async (): Promise<Product[]> => {
   try {
     const supabase = await createClient();
 
@@ -139,10 +164,10 @@ export async function getAdminProductsList(): Promise<Product[]> {
 
     return data as Product[];
   } catch (err) {
-    console.error('[getAdminProductsList Error]:', err);
+    console.error('[getAdminProductsList Exception]:', err);
     return [];
   }
-}
+});
 
 /**
  * Mengambil satu produk berdasarkan slug atau ID
