@@ -440,7 +440,7 @@ export function PetaniOrdersView({
                 </div>
 
                 {/* Courier / Shipping Notice Banner if active */}
-                {isInDelivery && order.courier_name && (
+                {isInDelivery && ((order as any).courier?.full_name || order.courier_name) && (
                   <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 flex items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="h-8 w-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -448,7 +448,7 @@ export function PetaniOrdersView({
                       </div>
                       <div className="min-w-0">
                         <span className="font-black text-purple-950 dark:text-purple-200 block truncate">
-                          {order.courier_name}
+                          {(order as any).courier?.full_name || order.courier_name}
                         </span>
                         <span className="text-[10px] text-purple-700 dark:text-purple-300 block truncate">
                           Armada Khusus Kentara sedang menuju ke lahan Anda
@@ -456,9 +456,9 @@ export function PetaniOrdersView({
                       </div>
                     </div>
 
-                    {order.courier_phone && (
+                    {((order as any).courier?.phone || order.courier_phone) && (
                       <a
-                        href={`https://wa.me/${order.courier_phone.replace(/^0/, '62')}`}
+                        href={`https://wa.me/${((order as any).courier?.phone || order.courier_phone).replace(/^0/, '62')}`}
                         target="_blank"
                         rel="noreferrer"
                         className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] shrink-0 flex items-center gap-1 shadow-xs"
@@ -618,15 +618,17 @@ export function PetaniOrdersView({
               </div>
 
               {/* Courier Actions if assigned */}
-              {selectedOrder.courier_name && (
+              {((selectedOrder as any).courier?.full_name || selectedOrder.courier_name) && (
                 <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-purple-700 dark:text-purple-400 block font-semibold">Kurir Pengantar:</span>
-                    <strong className="text-purple-950 dark:text-purple-200">{selectedOrder.courier_name}</strong>
+                    <strong className="text-purple-950 dark:text-purple-200">
+                      {(selectedOrder as any).courier?.full_name || selectedOrder.courier_name}
+                    </strong>
                   </div>
-                  {selectedOrder.courier_phone && (
+                  {((selectedOrder as any).courier?.phone || selectedOrder.courier_phone) && (
                     <a
-                      href={`https://wa.me/${selectedOrder.courier_phone.replace(/^0/, '62')}`}
+                      href={`https://wa.me/${((selectedOrder as any).courier?.phone || selectedOrder.courier_phone).replace(/^0/, '62')}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-xl bg-purple-600 text-white font-black text-xs flex items-center gap-1 shadow-xs"

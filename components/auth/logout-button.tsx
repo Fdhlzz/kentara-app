@@ -18,7 +18,12 @@ export function LogoutButton({
   const handleLogout = () => {
     startTransition(async () => {
       toast.info('Keluar dari akun...');
-      await logoutAction();
+      const res = await logoutAction();
+      if (res.success) {
+        window.location.href = res.redirectTo || '/login';
+      } else {
+        toast.error(res.error || 'Gagal keluar akun.');
+      }
     });
   };
 

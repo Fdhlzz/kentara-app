@@ -63,15 +63,18 @@ export function PetaniAccountView({ profile, orders = [] }: PetaniAccountViewPro
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await logoutAction();
-      toast.success('Berhasil keluar dari akun Kentara.');
-      router.push('/login');
+      const res = await logoutAction();
+      if (res.success) {
+        toast.success('Berhasil keluar dari akun Kentara.');
+        window.location.href = res.redirectTo || '/login';
+      } else {
+        toast.error(res.error || 'Gagal keluar dari akun.');
+        setIsLoggingOut(false);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Gagal keluar dari akun.');
-    } finally {
       setIsLoggingOut(false);
-      setIsLogoutModalOpen(false);
     }
   };
 

@@ -211,12 +211,19 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
 /**
  * Server Action untuk proses Logout
  */
-export async function logoutAction(): Promise<void> {
+export async function logoutAction(): Promise<AuthActionResult> {
   try {
     const supabase = await createClient();
-    await supabase.auth.signOut();
-  } catch (err) {
-    console.error('[logoutAction Error]:', err);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('[logoutAction Error]:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true, redirectTo: '/login' };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Gagal keluar akun.';
+    console.error('[logoutAction Exception]:', message);
+    return { success: false, error: message };
   }
-  redirect('/login');
 }
+
