@@ -144,6 +144,42 @@ export async function getAdminProductsList(): Promise<Product[]> {
   }
 }
 
+/**
+ * Mengambil satu produk berdasarkan slug atau ID
+ */
+export async function getProductBySlugOrId(slugOrId: string): Promise<Product | null> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Try finding by slug
+    const { data: bySlug, error: slugErr } = await supabase
+      .from('products')
+      .select('*')
+      .eq('slug', slugOrId)
+      .maybeSingle();
+
+    if (bySlug && !slugErr) {
+      return bySlug as Product;
+    }
+
+    // 2. Try finding by ID
+    const { data: byId, error: idErr } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', slugOrId)
+      .maybeSingle();
+
+    if (byId && !idErr) {
+      return byId as Product;
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[getProductBySlugOrId Error]:', err);
+    return null;
+  }
+}
+
 
 /**
  * Server Action: Tambah Benih Kentang Baru
