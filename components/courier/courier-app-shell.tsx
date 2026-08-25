@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { NotificationCenter } from '@/components/notifications/notification-center';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { CourierTaskModal } from '@/components/courier/courier-task-modal';
 import { CourierHistoryView } from '@/components/courier/courier-history-view';
 import { CourierSettingsView } from '@/components/courier/courier-settings-view';
@@ -80,7 +81,8 @@ export function CourierAppShell({ profile, orders = [] }: CourierAppShellProps) 
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             <NotificationCenter role="kurir" userId={profile.id} />
           </div>
         </div>

@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { LeafletMap } from '@/components/maps/leaflet-map';
 import { SwipeButton } from '@/components/ui/swipe-button';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   calculateDistanceKm,
   fetchRealRoadRoute,
@@ -349,6 +350,11 @@ export function CourierTaskModal({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Quick Theme Toggle */}
+            <div className="h-10 w-10 rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-lg flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 backdrop-blur-md">
+              <ThemeToggle />
+            </div>
+
             {/* Quick WA Button */}
             <a
               href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
