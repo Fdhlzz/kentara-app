@@ -441,3 +441,67 @@ export async function updateProductStockAction(
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Server Action: Unggah Gambar Produk ke Supabase Storage (Bucket: product-images)
+ */
+export async function uploadProductImageAction(
+  formData: FormData
+): Promise<{ success: boolean; error?: string; publicUrl?: string }> {
+  try {
+    const { supabase } = await verifyAdminRole();
+
+    const file = formData.get('file') as File | null;
+    if (!file || !(file instanceof File)) {
+      return { success: false, error: 'File gambar tidak ditemukan.' };
+    }
+
+    // Validate size (max 5MB)
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      return { success: false, error: 'Ukuran file gambar maksimal 5MB.' };
+    }
+
+    // Validate mime type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: 'Format gambar tidak didukung. Gunakan file JPEG, PNG, atau WEBP.',
+      };
+    }
+
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const cleanFileName = slugify(file.name.replace(/\.[^/.]+$/, ''));
+    const filePath = `potato-seeds/${Date.now()}-${cleanFileName}.${fileExt}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('[uploadProductImageAction Error]:', uploadError);
+      return {
+        success: false,
+        error: uploadError.message || 'Gagal mengunggah gambar ke Supabase Storage.',
+      };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('product-images').getPublicUrl(filePath);
+
+    return { success: true, publicUrl };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat mengunggah gambar.';
+    return { success: false, error: msg };
+  }
+}
+

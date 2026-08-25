@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -11,25 +11,22 @@ import {
   Edit2,
   Trash2,
   Eye,
-  SlidersHorizontal,
   Sparkles,
   ShieldCheck,
   MapPin,
-  Calendar,
-  Layers,
-  Scale,
-  TrendingUp,
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  Clock,
   Loader2,
   Package,
-  ArrowUpDown,
   LayoutGrid,
   List,
-  ExternalLink,
-  Info,
+  UploadCloud,
+  Upload,
+  Image as ImageIcon,
+  Check,
+  RotateCcw,
+  Cloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,12 +47,13 @@ import {
   toggleProductActiveAction,
   toggleProductFeaturedAction,
   updateProductStockAction,
+  uploadProductImageAction,
 } from '@/lib/admin/product-actions';
 
-// Preset photo options for quick selection
+// Preset photo options for quick fallback selection
 const PHOTO_PRESETS = [
   {
-    name: 'Granola / Meja (Kuning)',
+    name: 'Granola L / Meja (Kuning)',
     url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=80',
   },
   {
@@ -63,7 +61,7 @@ const PHOTO_PRESETS = [
     url: 'https://images.unsplash.com/photo-1590165482129-1b8b27698780?auto=format&fit=crop&w=800&q=80',
   },
   {
-    name: 'Mini Tuber G0 / Kultur Jaringan',
+    name: 'Mini Tuber G0 / Aeroponik',
     url: 'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=800&q=80',
   },
   {
@@ -71,7 +69,7 @@ const PHOTO_PRESETS = [
     url: 'https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&w=800&q=80',
   },
   {
-    name: 'Tenggo / Dataran Sedang-Tinggi',
+    name: 'Tenggo / Dataran Sedang',
     url: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=800&q=80',
   },
 ];
@@ -83,9 +81,11 @@ interface ProductManagerProps {
 
 export function ProductManager({ initialProducts, stats: initialStats }: ProductManagerProps) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [stats, setStats] = useState<AdminProductStats>(initialStats);
   const [isPending, startTransition] = useTransition();
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,7 +111,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
   const [formCertNumber, setFormCertNumber] = useState('');
   const [formSizeCategory, setFormSizeCategory] = useState('M (30-50g)');
   const [formSproutStatus, setFormSproutStatus] = useState('siap_tanam');
-  const [formPrice, setFormPrice] = useState<number | string>(38000);
+  const [formPrice, setFormPrice] = useState<number | string>(38500);
   const [formUnit, setFormUnit] = useState('kg');
   const [formStock, setFormStock] = useState<number | string>(1000);
   const [formMinOrder, setFormMinOrder] = useState<number | string>(5);
@@ -147,10 +147,11 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setFormHarvestDays('95 - 105 HST');
     setFormPotentialYield('28 - 35 Ton/Ha');
     setFormResilience('Tahan Virus PVX/PVY & Hawar Daun');
-    setFormDescription('Benih kentang unggulan bersertifikat BPSB resmi dengan daya kecambah dan keseragaman tinggi.');
+    setFormDescription('Benih kentang unggulan bersertifikasi BPSB resmi dengan kemurnian genetik tinggi dan tunas siap tanam.');
     setFormImageUrl(PHOTO_PRESETS[0].url);
     setFormIsFeatured(false);
     setFormIsActive(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // Populate form for editing
@@ -177,6 +178,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setFormIsFeatured(product.is_featured);
     setFormIsActive(product.is_active);
     setIsEditOpen(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // Open Detail modal
@@ -196,6 +198,48 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     setSelectedProduct(product);
     setQuickStockValue(product.stock);
     setIsQuickStockOpen(true);
+  };
+
+  // Handle Image Upload to Supabase Storage (Bucket: product-images)
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file melebihi 5MB', {
+        description: 'Format gambar maksimal berukuran 5MB.',
+      });
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Format gambar tidak didukung', {
+        description: 'Silakan pilih file JPG, JPEG, PNG, atau WEBP.',
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await uploadProductImageAction(formData);
+      if (!res.success || !res.publicUrl) {
+        toast.error(res.error || 'Gagal mengunggah foto');
+        return;
+      }
+
+      setFormImageUrl(res.publicUrl);
+      toast.success('Foto Berhasil Diunggah ke Supabase Storage!', {
+        description: 'Tersimpan di bucket product-images.',
+      });
+    } catch {
+      toast.error('Terjadi gangguan saat mengunggah foto');
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   // Filter & Sort Products
@@ -469,6 +513,8 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
     }
   };
 
+  const isSupabaseHosted = formImageUrl.includes('supabase.co/storage/v1/object/public/product-images');
+
   return (
     <div className="space-y-6">
       {/* Top Banner / Metrics Overview */}
@@ -546,7 +592,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
                 Katalog Manajemen Benih Kentang
               </h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Kelola stok, varietas (Granola, Atlantic, Medians), kelas generasi G0-G4, dan sertifikasi BPSB
+                Kelola varietas, generasi G0-G4, sertifikasi BPSB, dan unggah foto ke Supabase Storage
               </p>
             </div>
           </div>
@@ -992,7 +1038,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               Tambah Benih Kentang Baru
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Lengkapi informasi taksonomi, sertifikasi BPSB, spesifikasi budidaya, dan harga benih kentang.
+              Lengkapi taksonomi benih, sertifikasi BPSB, spesifikasi budidaya, dan unggah foto ke Supabase Storage.
             </DialogDescription>
           </DialogHeader>
 
@@ -1143,7 +1189,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
                     type="text"
                     value={formHarvestDays}
                     onChange={(e) => setFormHarvestDays(e.target.value)}
-                    placeholder="90 - 110 HST"
+                    placeholder="95 - 105 HST"
                     className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
                   />
                 </div>
@@ -1258,42 +1304,99 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               </div>
             </div>
 
-            {/* Section 4: Foto & Deskripsi */}
+            {/* Section 4: Foto via Supabase Storage Bucket & Deskripsi */}
             <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
-              <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
-                4. Foto &amp; Deskripsi
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <UploadCloud className="h-4 w-4 text-emerald-600" />
+                  <span>4. Unggah Foto Benih (Supabase Storage: product-images)</span>
+                </h4>
+                {isSupabaseHosted && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px]">
+                    <Cloud className="h-3 w-3 mr-1" /> Supabase Storage
+                  </Badge>
+                )}
+              </div>
 
+              {/* Upload Input Area & Preview */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="relative h-28 w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  {formImageUrl ? (
+                    <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs">
+                      <ImageIcon className="h-6 w-6 mb-1" />
+                      <span>Belum ada foto</span>
+                    </div>
+                  )}
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white text-xs font-semibold gap-1">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Mengunggah...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="create-image-upload"
+                      accept="image/jpeg,image/png,image/jpg,image/webp"
+                      onChange={handleImageFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl h-9 px-3 gap-1.5 shadow-xs"
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      <span>Pilih Foto dari Perangkat</span>
+                    </Button>
+                    <span className="text-[11px] text-zinc-400">JPG, PNG, maks 5MB</span>
+                  </div>
+
+                  <input
+                    type="url"
+                    value={formImageUrl}
+                    onChange={(e) => setFormImageUrl(e.target.value)}
+                    placeholder="Atau tempel URL gambar..."
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Preset Quick Chips */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Pilih Preset Foto Benih Kentang:
+                <label className="block text-[11px] font-semibold text-zinc-500 mb-1.5">
+                  Atau pilih contoh preset varietas:
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {PHOTO_PRESETS.map((preset, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setFormImageUrl(preset.url)}
-                      className={`flex items-center gap-2 p-1.5 rounded-xl border text-left text-[11px] font-medium transition ${
+                      className={`flex items-center gap-1.5 p-1 rounded-xl border text-left text-[10px] font-medium transition ${
                         formImageUrl === preset.url
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 ring-1 ring-emerald-500'
                           : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300'
                       }`}
                     >
-                      <div className="relative h-7 w-7 rounded-lg overflow-hidden shrink-0 bg-zinc-100">
+                      <div className="relative h-5 w-5 rounded-md overflow-hidden shrink-0 bg-zinc-100">
                         <Image src={preset.url} alt={preset.name} fill className="object-cover" />
                       </div>
                       <span className="truncate">{preset.name}</span>
                     </button>
                   ))}
                 </div>
-                <input
-                  type="url"
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  placeholder="Atau masukkan URL foto khusus (https://...)"
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
-                />
               </div>
 
               <div>
@@ -1343,7 +1446,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               </Button>
               <Button
                 type="submit"
-                disabled={isPending}
+                disabled={isPending || isUploadingImage}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold"
               >
                 {isPending ? (
@@ -1369,7 +1472,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               Ubah Data Benih Kentang
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Perbarui rincian harga, stok, varietas, spesifikasi, dan ketersediaan benih.
+              Perbarui rincian harga, stok, varietas, spesifikasi, dan foto benih di Supabase Storage.
             </DialogDescription>
           </DialogHeader>
 
@@ -1521,18 +1624,71 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               </div>
             </div>
 
-            {/* Section 3: Foto & Opsi Tampilan */}
+            {/* Section 3: Foto via Supabase Storage & Opsi */}
             <div className="space-y-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  URL Foto Benih
-                </label>
-                <input
-                  type="url"
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
-                />
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <UploadCloud className="h-4 w-4 text-emerald-600" />
+                  <span>Foto Benih (Supabase Storage)</span>
+                </h4>
+                {isSupabaseHosted && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px]">
+                    <Cloud className="h-3 w-3 mr-1" /> Supabase Storage
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="relative h-28 w-full rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  {formImageUrl ? (
+                    <Image src={formImageUrl} alt="Preview" fill className="object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 text-xs">
+                      <ImageIcon className="h-6 w-6 mb-1" />
+                      <span>Belum ada foto</span>
+                    </div>
+                  )}
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white text-xs font-semibold gap-1">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Mengunggah...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="edit-image-upload"
+                      accept="image/jpeg,image/png,image/jpg,image/webp"
+                      onChange={handleImageFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl h-9 px-3 gap-1.5 shadow-xs"
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      <span>Ganti Foto dari Perangkat</span>
+                    </Button>
+                  </div>
+
+                  <input
+                    type="url"
+                    value={formImageUrl}
+                    onChange={(e) => setFormImageUrl(e.target.value)}
+                    placeholder="URL Foto..."
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1581,7 +1737,7 @@ export function ProductManager({ initialProducts, stats: initialStats }: Product
               </Button>
               <Button
                 type="submit"
-                disabled={isPending}
+                disabled={isPending || isUploadingImage}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold"
               >
                 {isPending ? (

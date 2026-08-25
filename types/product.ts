@@ -69,3 +69,9 @@ export interface ProductActionResult {
   error?: string;
   product?: Product;
 }
+
+export interface UploadImageResult {
+  success: boolean;
+  error?: string;
+  publicUrl?: string;
+}
