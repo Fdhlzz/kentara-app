@@ -44,6 +44,7 @@ import {
   startCourierDeliveryAction,
   completeCourierDeliveryAction,
 } from '@/lib/admin/courier-actions';
+import { useCourierLocationTracker } from '@/hooks/use-courier-location-tracker';
 import type { Order } from '@/types/order';
 import type { MapMarkerData, MapRouteData } from '@/types/maps';
 
@@ -72,30 +73,22 @@ export function CourierTaskModal({
 
   // Default coordinate Makassar if order has no specific coords
   const customerCoords: [number, number] = [-5.1379367, 119.4357388];
-  const [courierPosition, setCourierPosition] = useState<[number, number]>([
+
+  // Live High-Performance Battery-Friendly GPS Tracker (Syncs to public.courier_locations)
+  const isDeliveryActive = isOpen && !!order && order.order_status === 'dikirim';
+  const { currentPosition, isGpsActive, lastSyncTime } = useCourierLocationTracker({
+    orderId: order?.id,
+    isActive: isDeliveryActive,
+    minDistanceMeters: 10, // 10 meters distance threshold
+    minIntervalMs: 10000,  // 10 seconds heartbeat interval
+  });
+
+  const courierPosition: [number, number] = currentPosition || [
     customerCoords[0] - 0.012,
     customerCoords[1] - 0.015,
-  ]);
-  const [isGpsActive, setIsGpsActive] = useState(false);
+  ];
+
   const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
-
-  // GPS tracking on open
-  useEffect(() => {
-    if (!isOpen || typeof window === 'undefined' || !navigator.geolocation) return;
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setCourierPosition([pos.coords.latitude, pos.coords.longitude]);
-        setIsGpsActive(true);
-      },
-      (err) => {
-        console.warn('[Courier Task GPS]:', err.message);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOpen]);
 
   // Load real road routing
   useEffect(() => {
@@ -113,7 +106,7 @@ export function CourierTaskModal({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, courierPosition]);
+  }, [isOpen, courierPosition[0], courierPosition[1]]);
 
   if (!order || !isOpen) return null;
 

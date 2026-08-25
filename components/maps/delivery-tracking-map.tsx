@@ -27,6 +27,7 @@ import {
   fetchRealRoadRoute,
   type RoadRouteResult,
 } from '@/lib/maps/leaflet-helpers';
+import { getCourierLocationByOrderAction } from '@/lib/maps/location-actions';
 import type { MapMarkerData, MapRouteData } from '@/types/maps';
 
 export interface DeliveryTrackingMapProps {
@@ -78,6 +79,31 @@ export function DeliveryTrackingMap({
   // Real road routing state
   const [roadRoute, setRoadRoute] = useState<RoadRouteResult | null>(null);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
+  // Poll live courier location from public.courier_locations if orderId is provided
+  useEffect(() => {
+    if (!orderId) return;
+    let isMounted = true;
+
+    async function fetchLiveCourier() {
+      try {
+        const liveLoc = await getCourierLocationByOrderAction(orderId);
+        if (liveLoc && isMounted && liveLoc.is_active) {
+          setCourierPosition([liveLoc.latitude, liveLoc.longitude]);
+          setIsGpsActive(true);
+        }
+      } catch (e) {
+        console.warn('[Live Courier Fetch]:', e);
+      }
+    }
+
+    fetchLiveCourier();
+    const interval = setInterval(fetchLiveCourier, 10000); // 10s poll
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [orderId]);
 
   // Handler interaktif untuk tombol sinkronisasi GPS
   const handleManualLocate = () => {

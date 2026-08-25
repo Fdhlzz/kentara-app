@@ -29,3 +29,26 @@ export interface MapRouteData {
 }
 
 export type TileLayerProvider = 'osm' | 'voyager' | 'satellite';
+
+export interface CourierLocationInput {
+  order_id?: string | null;
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  speed?: number | null;
+  accuracy?: number | null;
+  is_active?: boolean;
+}
+
+export interface CourierLocationRecord {
+  id: string;
+  courier_id: string;
+  order_id?: string | null;
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  speed?: number | null;
+  accuracy?: number | null;
+  is_active: boolean;
+  updated_at: string;
+}
