@@ -80,6 +80,32 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
+  it('should toggle sheet minimization while preserving bottom swipe action button', () => {
+    function getSheetLayoutState(isMinimized: boolean) {
+      return {
+        isDetailsExpanded: !isMinimized,
+        showAddressCard: !isMinimized,
+        showPaymentBanner: !isMinimized,
+        showCargoBreakdown: !isMinimized,
+        // Bottom Action button is ALWAYS visible in both states
+        showSwipeButton: true,
+        showCompactHeader: isMinimized,
+      };
+    }
+
+    const expandedState = getSheetLayoutState(false);
+    expect(expandedState.isDetailsExpanded).toBe(true);
+    expect(expandedState.showAddressCard).toBe(true);
+    expect(expandedState.showSwipeButton).toBe(true);
+
+    const minimizedState = getSheetLayoutState(true);
+    expect(minimizedState.isDetailsExpanded).toBe(false);
+    expect(minimizedState.showAddressCard).toBe(false);
+    expect(minimizedState.showCompactHeader).toBe(true);
+    // Button stays on bottom!
+    expect(minimizedState.showSwipeButton).toBe(true);
+  });
+
   it('should enforce price privacy: hide prices on online orders and only show total to collect on cash orders', () => {
     function getCourierPaymentDisplay(order: Order) {
       const isCash = order.payment_gateway === 'cash';

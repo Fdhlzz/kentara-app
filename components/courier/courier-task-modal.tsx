@@ -28,6 +28,8 @@ import {
   ArrowRight,
   PartyPopper,
   User,
+  Minimize2,
+  Maximize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +96,9 @@ export function CourierTaskModal({
   const [currentOrderStatus, setCurrentOrderStatus] = useState<string>(order?.order_status || 'diproses');
   const [isSimulatedArrival, setIsSimulatedArrival] = useState(false);
 
+  // Minimizable Bottom Sheet State (Collapsible to clear map clutter)
+  const [isSheetMinimized, setIsSheetMinimized] = useState(false);
+
   // Success Celebration & Redirect Modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -104,6 +109,7 @@ export function CourierTaskModal({
       setCurrentOrderStatus(order.order_status);
       setIsSimulatedArrival(false);
       setIsSuccessModalOpen(false);
+      setIsSheetMinimized(false);
     }
   }, [order?.id, order?.order_status]);
 
@@ -442,122 +448,167 @@ export function CourierTaskModal({
         </div>
       )}
 
-      {/* 4. Bottom Sliding Task Sheet & Driver Action Controls */}
-      <div className="mt-auto relative z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 pb-6 space-y-3 shadow-2xl rounded-t-3xl max-w-lg mx-auto w-full pointer-events-auto">
-        {/* Swipe Handle Indicator */}
-        <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto -mt-1" />
+      {/* 4. MINIMIZABLE BOTTOM SLIDING TASK SHEET & PINNED BOTTOM ACTION CONTROLS */}
+      <div className="mt-auto relative z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 shadow-2xl rounded-t-3xl max-w-lg mx-auto w-full pointer-events-auto transition-all duration-300">
+        {/* Clickable Header Handle to Toggle Minimize / Expand */}
+        <button
+          type="button"
+          onClick={() => setIsSheetMinimized(!isSheetMinimized)}
+          className="w-full pt-3 pb-2 px-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition rounded-t-3xl"
+          title={isSheetMinimized ? 'Perluas Rincian Pengantaran' : 'Ciutkan Rincian Pengantaran'}
+        >
+          <div className="w-12 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700" />
 
-        {/* Readable Recipient & Farm Location Card */}
-        <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 space-y-2.5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-zinc-400">
-                <User className="h-3 w-3 text-blue-600" />
-                <span>Penerima / Petani Lahan</span>
+          {/* Compact Mini Bar when Minimized */}
+          {isSheetMinimized ? (
+            <div className="w-full flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-black text-zinc-900 dark:text-white truncate">
+                  {order.customer_name}
+                </span>
+                <Badge
+                  className={`text-[9px] font-bold px-1.5 py-0 ${
+                    isCashOrder
+                      ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                  }`}
+                >
+                  {isCashOrder ? `💵 COD: Rp ${order.total_amount.toLocaleString('id-ID')}` : '💳 Lunas Online'}
+                </Badge>
               </div>
-              <p className="text-sm sm:text-base font-black text-zinc-900 dark:text-white mt-0.5 leading-snug">
-                {order.customer_name}
-              </p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-1 mt-0.5">
-                <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
-                <span className="font-semibold">{order.customer_phone}</span>
-              </p>
+
+              <div className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                <span>Rincian</span>
+                <ChevronUp className="h-4 w-4" />
+              </div>
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-between pt-0.5 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+              <span>Rincian Pengantaran</span>
+              <span className="flex items-center gap-0.5 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                <span>Ciutkan</span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          )}
+        </button>
+
+        {/* EXPANDED DETAILS BODY (Hidden when minimized to clear map clutter) */}
+        {!isSheetMinimized && (
+          <div className="px-4 sm:px-5 pb-2 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            {/* Readable Recipient & Farm Location Card */}
+            <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800 space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-zinc-400">
+                    <User className="h-3 w-3 text-blue-600" />
+                    <span>Penerima / Petani Lahan</span>
+                  </div>
+                  <p className="text-sm sm:text-base font-black text-zinc-900 dark:text-white mt-0.5 leading-snug">
+                    {order.customer_name}
+                  </p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-1 mt-0.5">
+                    <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="font-semibold">{order.customer_phone}</span>
+                  </p>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] text-zinc-400 block font-medium">
+                    {isCashOrder ? 'Tagihan Tunai COD' : 'Status Tagihan'}
+                  </span>
+                  {isCashOrder ? (
+                    <span className="text-base font-black text-amber-700 dark:text-amber-400">
+                      Rp {order.total_amount.toLocaleString('id-ID')}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800 inline-block mt-0.5">
+                      Lunas Online (Rp 0)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-xs">
+                <div className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                  <span>Titik Alamat Lahan</span>
+                </div>
+                <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5 leading-tight">
+                  {order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}
+                </p>
+              </div>
             </div>
 
-            <div className="text-right shrink-0">
-              <span className="text-[10px] text-zinc-400 block font-medium">
-                {isCashOrder ? 'Tagihan Tunai COD' : 'Status Tagihan'}
-              </span>
-              {isCashOrder ? (
-                <span className="text-base font-black text-amber-700 dark:text-amber-400">
-                  Rp {order.total_amount.toLocaleString('id-ID')}
+            {/* Payment Method Notice Badge */}
+            <div
+              className={`p-2.5 rounded-2xl flex items-center justify-between border ${
+                isCashOrder
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className={`p-1.5 rounded-xl ${
+                    isCashOrder ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
+                  }`}
+                >
+                  {isCashOrder ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+                </div>
+                <div>
+                  <span
+                    className={`text-xs font-black block ${
+                      isCashOrder
+                        ? 'text-amber-900 dark:text-amber-200'
+                        : 'text-emerald-900 dark:text-emerald-200'
+                    }`}
+                  >
+                    {isCashOrder
+                      ? `💵 Tagih Uang Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
+                      : '💳 Lunas Online (Jangan Minta Uang)'}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
+                    {isCashOrder
+                      ? `Wajib kumpulkan uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli saat serah terima.`
+                      : 'Pesanan telah dibayar lunas online. Anda tidak perlu menagih uang kepada pembeli.'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Expandable Ordered Seed Items */}
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => setIsItemsExpanded(!isItemsExpanded)}
+                className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
+                  <Package className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Rincian Muatan ({order.items?.length || 0} varietas benih)</span>
                 </span>
-              ) : (
-                <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800 inline-block mt-0.5">
-                  Lunas Online (Rp 0)
-                </span>
+                {isItemsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+
+              {isItemsExpanded && (
+                <div className="p-3 pt-0 border-t border-zinc-200/60 dark:border-zinc-800 space-y-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {order.items?.map((item, idx) => (
+                    <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
+                      <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
+                      <span className="font-semibold text-zinc-500">
+                        Muatan Siap Serah
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
+        )}
 
-          <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-xs">
-            <div className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-              <span>Titik Alamat Lahan</span>
-            </div>
-            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mt-0.5 leading-tight">
-              {order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}
-            </p>
-          </div>
-        </div>
-
-        {/* Payment Method Notice Badge */}
-        <div
-          className={`p-2.5 rounded-2xl flex items-center justify-between border ${
-            isCashOrder
-              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60'
-              : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className={`p-1.5 rounded-xl ${
-                isCashOrder ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'
-              }`}
-            >
-              {isCashOrder ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-            </div>
-            <div>
-              <span
-                className={`text-xs font-black block ${
-                  isCashOrder
-                    ? 'text-amber-900 dark:text-amber-200'
-                    : 'text-emerald-900 dark:text-emerald-200'
-                }`}
-              >
-                {isCashOrder
-                  ? `💵 Tagih Uang Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
-                  : '💳 Lunas Online (Jangan Minta Uang)'}
-              </span>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
-                {isCashOrder
-                  ? `Wajib kumpulkan uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli saat serah terima.`
-                  : 'Pesanan telah dibayar lunas online. Anda tidak perlu menagih uang kepada pembeli.'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Expandable Ordered Seed Items */}
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
-          <button
-            type="button"
-            onClick={() => setIsItemsExpanded(!isItemsExpanded)}
-            className="w-full p-2.5 px-3 flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
-          >
-            <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
-              <Package className="h-3.5 w-3.5 text-blue-600" />
-              <span>Rincian Muatan ({order.items?.length || 0} varietas benih)</span>
-            </span>
-            {isItemsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-
-          {isItemsExpanded && (
-            <div className="p-3 pt-0 border-t border-zinc-200/60 dark:border-zinc-800 space-y-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
-              {order.items?.map((item, idx) => (
-                <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
-                  <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
-                  <span className="font-semibold text-zinc-500">
-                    Muatan Siap Serah
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 5. Interactive Mobile Swipe-to-Action Buttons & Proximity Gate */}
-        <div className="space-y-2">
+        {/* 5. PERMANENTLY PINNED BOTTOM ACTION CONTROLS & SWIPE BUTTON */}
+        <div className="p-4 sm:p-5 pt-2 pb-6 space-y-2">
           {isFinished ? (
             <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-900 text-center text-xs font-bold text-zinc-600 dark:text-zinc-400 flex items-center justify-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -572,9 +623,11 @@ export function CourierTaskModal({
                 isLoading={isPending}
                 onSwipeComplete={handleStartDelivery}
               />
-              <p className="text-[10px] text-zinc-400 text-center">
-                Geser ke kanan untuk memulai navigasi rute ke lahan pembeli.
-              </p>
+              {!isSheetMinimized && (
+                <p className="text-[10px] text-zinc-400 text-center">
+                  Geser ke kanan untuk memulai navigasi rute ke lahan pembeli.
+                </p>
+              )}
             </div>
           ) : (
             /* STEP 2: Swipe to Complete Delivery (Enabled ONLY when close to customer location) */
