@@ -11,6 +11,7 @@ interface SwipeButtonProps {
   disabled?: boolean;
   className?: string;
   variant?: 'primary' | 'success' | 'warning';
+  resetKey?: any;
 }
 
 export function SwipeButton({
@@ -21,6 +22,7 @@ export function SwipeButton({
   disabled = false,
   className = '',
   variant = 'primary',
+  resetKey,
 }: SwipeButtonProps) {
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -97,13 +99,13 @@ export function SwipeButton({
     };
   }, [isDragging, handleMove, handleEnd]);
 
-  // Reset completion if disabled changed
+  // Reset completion if disabled changed or resetKey changed
   useEffect(() => {
     if (!isLoading && !disabled) {
       setIsCompleted(false);
       setSliderPosition(0);
     }
-  }, [isLoading, disabled]);
+  }, [isLoading, disabled, resetKey]);
 
   const getVariantStyles = () => {
     if (disabled) {

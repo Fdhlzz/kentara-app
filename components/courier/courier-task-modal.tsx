@@ -100,6 +100,9 @@ export function CourierTaskModal({
   // Minimizable Bottom Sheet State (Default to MINIMIZED for full-screen map view)
   const [isSheetMinimized, setIsSheetMinimized] = useState(true);
 
+  // Swipe reset key to rewind swipe handle when confirmation dialog is closed
+  const [swipeResetKey, setSwipeResetKey] = useState(0);
+
   // Success Celebration & Redirect Modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -276,6 +279,7 @@ export function CourierTaskModal({
       toast.warning('Belum Tiba di Lokasi', {
         description: `Jarak Anda masih ${distanceKm} km dari titik pembeli. Tombol akan aktif saat tiba di lokasi.`,
       });
+      setSwipeResetKey((k) => k + 1);
       return;
     }
 
@@ -677,6 +681,7 @@ export function CourierTaskModal({
                 variant={isNearCustomer ? 'success' : 'primary'}
                 disabled={!isNearCustomer || isPending}
                 isLoading={isPending}
+                resetKey={swipeResetKey}
                 onSwipeComplete={handleFinishDeliveryAttempt}
               />
             </div>
@@ -684,68 +689,124 @@ export function CourierTaskModal({
         </div>
       </div>
 
-      {/* CASH PAYMENT RECEIPT CONFIRMATION POPUP */}
-      <Dialog open={isCashConfirmOpen} onOpenChange={setIsCashConfirmOpen}>
-        <DialogContent className="max-w-md rounded-3xl p-6">
-          <DialogHeader>
-            <div className="h-14 w-14 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 flex items-center justify-center mb-2 mx-auto shadow-xs">
-              <Banknote className="h-8 w-8" />
+      {/* CASH PAYMENT RECEIPT CONFIRMATION POPUP (MOBILE-FIRST TACTILE DESIGN) */}
+      <Dialog
+        open={isCashConfirmOpen}
+        onOpenChange={(open) => {
+          setIsCashConfirmOpen(open);
+          if (!open) {
+            setCashConfirmedCheckbox(false);
+            setSwipeResetKey((k) => k + 1);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md rounded-3xl p-5 sm:p-6 border-2 border-amber-500/30">
+          <DialogHeader className="text-center">
+            <div className="h-16 w-16 rounded-3xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 flex items-center justify-center mb-2 mx-auto shadow-md ring-4 ring-amber-500/20">
+              <Banknote className="h-9 w-9 text-amber-600 dark:text-amber-400" />
             </div>
-            <DialogTitle className="text-lg font-black text-center text-zinc-900 dark:text-white">
-              Konfirmasi Penerimaan Uang Tunai (COD)
+            <DialogTitle className="text-lg sm:text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+              Terima Kas Tunai (COD)
             </DialogTitle>
-            <DialogDescription className="text-xs text-center text-zinc-500">
-              Pelanggan memilih metode <strong>Bayar Tunai di Tempat (COD)</strong>. Pastikan uang tunai pas telah Anda terima sebelum menyelesaikan tugas.
+            <DialogDescription className="text-xs text-zinc-500 max-w-xs mx-auto">
+              Pesanan ini menggunakan metode <strong>Bayar Tunai di Tempat</strong>. Pastikan uang tunai telah Anda hitung pas sebelum serah terima benih.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 my-2">
-            {/* Amount Box */}
-            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-400/30 text-center space-y-1">
-              <span className="text-xs text-amber-800 dark:text-amber-300 font-semibold block">
-                Total Tagihan Tunai yang Harus Diterima:
+          <div className="space-y-3.5 my-2">
+            {/* Massive Cash Amount Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-950/60 dark:to-amber-900/30 border border-amber-300 dark:border-amber-700/60 text-center shadow-xs">
+              <span className="text-[11px] text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider block">
+                Total Tagihan Tunai Wajib Diterima
               </span>
-              <span className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-amber-100">
+              <span className="text-3xl sm:text-4xl font-black text-amber-950 dark:text-amber-100 tracking-tight block mt-1">
                 Rp {order.total_amount.toLocaleString('id-ID')}
               </span>
+              <div className="flex items-center justify-center gap-1.5 mt-2 text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                <User className="h-3.5 w-3.5" />
+                <span>Pembeli: <strong>{order.customer_name}</strong></span>
+              </div>
             </div>
 
-            {/* Checkbox confirmation with Readable Full Name */}
-            <label className="flex items-start gap-3 p-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition">
-              <input
-                type="checkbox"
-                checked={cashConfirmedCheckbox}
-                onChange={(e) => setCashConfirmedCheckbox(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded-md text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              />
-              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 leading-snug">
-                Saya mengonfirmasi telah menerima uang tunai pas sebesar{' '}
-                <strong>Rp {order.total_amount.toLocaleString('id-ID')}</strong> dari{' '}
-                <strong>{order.customer_name}</strong>.
-              </span>
-            </label>
+            {/* Large Tactile Confirmation Touch Card */}
+            <div
+              onClick={() => setCashConfirmedCheckbox(!cashConfirmedCheckbox)}
+              className={`p-3.5 rounded-2xl border-2 transition cursor-pointer flex items-center gap-3 select-none active:scale-98 ${
+                cashConfirmedCheckbox
+                  ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/60 ring-2 ring-emerald-500/20 text-emerald-950 dark:text-emerald-100'
+                  : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/80 hover:bg-zinc-100 text-zinc-700 dark:text-zinc-300'
+              }`}
+            >
+              <div
+                className={`h-7 w-7 rounded-xl flex items-center justify-center shrink-0 font-black transition ${
+                  cashConfirmedCheckbox
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-transparent'
+                }`}
+              >
+                <Check className="h-4 w-4 stroke-[3]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-black block leading-snug">
+                  {cashConfirmedCheckbox
+                    ? 'Uang Tunai Pas Telah Diterima'
+                    : 'Ketuk untuk Konfirmasi Penerimaan Uang'}
+                </span>
+                <span className="text-[11px] opacity-80 block leading-tight mt-0.5">
+                  Saya menyatakan uang pas <strong>Rp {order.total_amount.toLocaleString('id-ID')}</strong> telah diterima dari <strong>{order.customer_name}</strong>.
+                </span>
+              </div>
+            </div>
 
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                Catatan Serah Terima (Opsional)
-              </label>
+            {/* Quick 1-Tap Preset Note Chips */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wide">
+                Catatan Serah Terima Cepat:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  '💵 Uang pas diterima tanpa kembalian',
+                  '🤝 Diterima langsung oleh pembeli',
+                  '🏡 Dititipkan di lokasi lahan',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setCashNotes(preset);
+                      setCashConfirmedCheckbox(true);
+                    }}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-xl border transition active:scale-95 cursor-pointer ${
+                      cashNotes === preset
+                        ? 'bg-amber-100 border-amber-400 text-amber-900 dark:bg-amber-950 dark:border-amber-600 dark:text-amber-200'
+                        : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
               <textarea
                 rows={2}
                 value={cashNotes}
                 onChange={(e) => setCashNotes(e.target.value)}
-                placeholder={`Contoh: Diterima uang pas Rp ${order.total_amount.toLocaleString('id-ID')} oleh ${order.customer_name} di lokasi...`}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                placeholder="Catatan tambahan (opsional)..."
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white mt-1"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsCashConfirmOpen(false)}
-              className="rounded-xl text-xs font-semibold"
+              onClick={() => {
+                setIsCashConfirmOpen(false);
+                setCashConfirmedCheckbox(false);
+                setSwipeResetKey((k) => k + 1);
+              }}
+              className="rounded-2xl text-xs font-semibold h-11"
             >
               Batal
             </Button>
@@ -753,17 +814,17 @@ export function CourierTaskModal({
               type="button"
               disabled={!cashConfirmedCheckbox || isPending}
               onClick={() => executeCompleteDelivery(true, cashNotes)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-md"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black h-11 gap-1.5 shadow-lg flex-1 cursor-pointer"
             >
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Memproses...</span>
+                  <span>Memproses Transaksi...</span>
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4" />
-                  <span>Konfirmasi &amp; Selesaikan Tugas</span>
+                  <Check className="h-4 w-4 stroke-[3]" />
+                  <span>Selesaikan Tugas &amp; Serah Terima</span>
                 </>
               )}
             </Button>

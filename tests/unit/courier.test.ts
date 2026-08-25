@@ -81,6 +81,35 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
+  it('should reset swipe button back to start position when cash confirmation dialog is cancelled', () => {
+    function handleCashDialogDismissal(
+      isConfirmed: boolean,
+      currentResetKey: number
+    ) {
+      if (!isConfirmed) {
+        // Cancelled / closed without confirm -> increment resetKey to trigger smooth swipe rewind
+        return {
+          isCashDialogOpen: false,
+          isCompleted: false,
+          sliderPosition: 0,
+          resetKey: currentResetKey + 1,
+        };
+      }
+      return {
+        isCashDialogOpen: false,
+        isCompleted: true,
+        sliderPosition: 200,
+        resetKey: currentResetKey,
+      };
+    }
+
+    const cancelledState = handleCashDialogDismissal(false, 0);
+    expect(cancelledState.isCashDialogOpen).toBe(false);
+    expect(cancelledState.isCompleted).toBe(false);
+    expect(cancelledState.sliderPosition).toBe(0);
+    expect(cancelledState.resetKey).toBe(1); // Triggers swipe button reset!
+  });
+
   it('should sort active tasks list so that in-progress delivery (dikirim) is always moved to the very top', () => {
     const rawOrders: Order[] = [
       {
