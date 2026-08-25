@@ -66,6 +66,12 @@ export async function addToUserCartAction(
   quantity: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!productId || typeof productId !== 'string') {
+      return { success: false, error: 'ID produk tidak valid' };
+    }
+
+    const safeQty = Math.max(1, Math.min(10_000, Math.round(Number(quantity || 1))));
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -95,7 +101,7 @@ export async function addToUserCartAction(
     }
 
     if (existing) {
-      const newQty = Math.min(product.stock, existing.quantity + quantity);
+      const newQty = Math.min(product.stock, existing.quantity + safeQty);
       const { error: updateErr } = await supabase
         .from('cart_items')
         .update({
@@ -106,7 +112,7 @@ export async function addToUserCartAction(
 
       if (updateErr) return { success: false, error: updateErr.message };
     } else {
-      const initialQty = Math.min(product.stock, Math.max(product.min_order || 1, quantity));
+      const initialQty = Math.min(product.stock, Math.max(product.min_order || 1, safeQty));
       const { error: insertErr } = await supabase.from('cart_items').insert({
         user_id: user.id,
         product_id: productId,
@@ -132,6 +138,17 @@ export async function updateUserCartQtyAction(
   quantity: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!productId || typeof productId !== 'string') {
+      return { success: false, error: 'ID produk tidak valid' };
+    }
+
+    const numQty = Math.round(Number(quantity));
+    if (isNaN(numQty) || numQty <= 0) {
+      return removeFromUserCartAction(productId);
+    }
+
+    const safeQty = Math.min(10_000, numQty);
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -141,14 +158,10 @@ export async function updateUserCartQtyAction(
       return { success: false, error: 'User tidak terautentikasi' };
     }
 
-    if (quantity <= 0) {
-      return removeFromUserCartAction(productId);
-    }
-
     const { error } = await supabase
       .from('cart_items')
       .update({
-        quantity,
+        quantity: safeQty,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', user.id)

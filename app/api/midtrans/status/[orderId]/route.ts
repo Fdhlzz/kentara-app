@@ -3,17 +3,28 @@ import {
   checkTransactionStatus,
   mapMidtransStatus,
 } from '@/lib/midtrans/server';
+import { checkRateLimit, getClientIp, RATE_LIMIT_PRESETS } from '@/lib/security/rate-limit';
 
 export async function GET(
-  _req: Request,
+  req: Request,
   props: { params: Promise<{ orderId: string }> }
 ) {
   try {
+    // 1. Rate Limiting Check
+    const clientIp = getClientIp(req.headers);
+    const rateLimit = checkRateLimit(`midtrans-status:${clientIp}`, RATE_LIMIT_PRESETS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Terlalu banyak permintaan pengecekan status.' },
+        { status: 429 }
+      );
+    }
+
     const { orderId } = await props.params;
 
-    if (!orderId) {
+    if (!orderId || !/^[a-zA-Z0-9\-_]{3,60}$/.test(orderId)) {
       return NextResponse.json(
-        { success: false, error: 'Order ID wajib disertakan' },
+        { success: false, error: 'Format Order ID tidak valid.' },
         { status: 400 }
       );
     }
@@ -45,7 +56,7 @@ export async function GET(
     console.error(`[Midtrans Status Error]:`, errorMessage);
 
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { success: false, error: 'Gagal memverifikasi status pembayaran.' },
       { status: 500 }
     );
   }

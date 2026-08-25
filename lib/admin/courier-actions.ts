@@ -16,11 +16,40 @@ export interface AdminDashboardStats {
 }
 
 /**
+ * Helper to ensure current user is authenticated as admin
+ */
+async function verifyAdminRole() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error('Autentikasi diperlukan. Silakan login kembali sebagai Administrator.');
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const userRole = profile?.role || user.user_metadata?.role;
+
+  if (userRole !== 'admin') {
+    throw new Error('Akses ditolak. Tindakan ini memerlukan hak akses Administrator.');
+  }
+
+  return { supabase, user };
+}
+
+/**
  * Mengambil statistik ringkasan pengguna untuk Admin Dashboard
  */
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     const { data: stats, error } = await supabase.rpc('admin_get_stats');
     if (!error && stats) {
@@ -54,7 +83,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
  */
 export async function getCouriersList(): Promise<CourierUser[]> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     const { data: rpcCouriers, error } = await supabase.rpc('admin_list_couriers');
 
@@ -102,32 +131,44 @@ export async function getCouriersList(): Promise<CourierUser[]> {
 export async function createCourierAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const fullName = String(formData.get('full_name') || '').trim();
-  const email = String(formData.get('email') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const password = String(formData.get('password') || '');
-
-  if (!fullName) {
-    return { success: false, error: 'Nama lengkap kurir wajib diisi.' };
-  }
-  if (!email) {
-    return { success: false, error: 'Alamat email kurir wajib diisi.' };
-  }
-  if (!password || password.length < 6) {
-    return {
-      success: false,
-      error: 'Kata sandi minimal harus terdiri dari 6 karakter.',
-    };
-  }
-
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
+
+    const fullName = String(formData.get('full_name') || '').trim();
+    const rawEmail = String(formData.get('email') || '').trim();
+    const rawPhone = String(formData.get('phone') || '').trim();
+    const password = String(formData.get('password') || '');
+
+    if (!fullName || fullName.length < 2) {
+      return { success: false, error: 'Nama lengkap kurir wajib diisi (minimal 2 karakter).' };
+    }
+
+    const { validateEmail, validatePhone, validatePasswordStrength } = await import('@/lib/security/validation');
+
+    const emailCheck = validateEmail(rawEmail);
+    if (!emailCheck.valid || !emailCheck.sanitized) {
+      return { success: false, error: emailCheck.error || 'Alamat email kurir tidak valid.' };
+    }
+
+    const pwdCheck = validatePasswordStrength(password);
+    if (!pwdCheck.valid) {
+      return { success: false, error: pwdCheck.error || 'Kata sandi minimal 6 karakter.' };
+    }
+
+    let formattedPhone: string | null = null;
+    if (rawPhone) {
+      const phoneCheck = validatePhone(rawPhone);
+      if (!phoneCheck.valid) {
+        return { success: false, error: phoneCheck.error || 'Format nomor telepon tidak valid.' };
+      }
+      formattedPhone = phoneCheck.formatted || null;
+    }
 
     const { error } = await supabase.rpc('admin_create_courier', {
       p_full_name: fullName,
-      p_email: email,
+      p_email: emailCheck.sanitized,
       p_password: password,
-      p_phone: phone || null,
+      p_phone: formattedPhone,
     });
 
     if (error) {
@@ -149,31 +190,43 @@ export async function createCourierAction(
 export async function updateCourierAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const userId = String(formData.get('id') || '');
-  const fullName = String(formData.get('full_name') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const newPassword = String(formData.get('new_password') || '').trim();
-
-  if (!userId) {
-    return { success: false, error: 'ID kurir tidak valid.' };
-  }
-  if (!fullName) {
-    return { success: false, error: 'Nama lengkap kurir wajib diisi.' };
-  }
-  if (newPassword && newPassword.length < 6) {
-    return {
-      success: false,
-      error: 'Kata sandi baru minimal harus 6 karakter.',
-    };
-  }
-
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
+
+    const userId = String(formData.get('id') || '').trim();
+    const fullName = String(formData.get('full_name') || '').trim();
+    const rawPhone = String(formData.get('phone') || '').trim();
+    const newPassword = String(formData.get('new_password') || '').trim();
+
+    if (!userId) {
+      return { success: false, error: 'ID kurir tidak valid.' };
+    }
+    if (!fullName || fullName.length < 2) {
+      return { success: false, error: 'Nama lengkap kurir wajib diisi.' };
+    }
+
+    const { validatePhone, validatePasswordStrength } = await import('@/lib/security/validation');
+
+    if (newPassword) {
+      const pwdCheck = validatePasswordStrength(newPassword);
+      if (!pwdCheck.valid) {
+        return { success: false, error: pwdCheck.error || 'Kata sandi baru minimal harus 6 karakter.' };
+      }
+    }
+
+    let formattedPhone: string | null = null;
+    if (rawPhone) {
+      const phoneCheck = validatePhone(rawPhone);
+      if (!phoneCheck.valid) {
+        return { success: false, error: phoneCheck.error || 'Format telepon tidak valid.' };
+      }
+      formattedPhone = phoneCheck.formatted || null;
+    }
 
     const { error } = await supabase.rpc('admin_update_courier', {
       p_user_id: userId,
       p_full_name: fullName,
-      p_phone: phone || null,
+      p_phone: formattedPhone,
       p_new_password: newPassword || null,
     });
 
@@ -201,7 +254,7 @@ export async function deleteCourierAction(
   }
 
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     const { error } = await supabase.rpc('admin_delete_courier', {
       p_user_id: userId,

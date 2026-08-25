@@ -60,10 +60,13 @@ export async function createOrderAndGetSnapAction(
   input: CreateOrderInput
 ): Promise<OrderActionResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { validateOrderInput } = await import('@/lib/security/validation');
+    const { checkRateLimit, RATE_LIMIT_PRESETS } = await import('@/lib/security/rate-limit');
+
+    const validation = validateOrderInput(input);
+    if (!validation.valid || !validation.sanitizedData) {
+      return { success: false, error: validation.error || 'Data pesanan tidak valid.' };
+    }
 
     const {
       customer_name,
@@ -74,44 +77,87 @@ export async function createOrderAndGetSnapAction(
       customer_latitude,
       customer_longitude,
       notes,
+    } = validation.sanitizedData;
+
+    const {
       items,
       shipping_cost = 15000,
       payment_method_type = 'gateway',
       payment_method_detail = 'midtrans',
     } = input;
 
-    if (!customer_name?.trim()) {
-      return { success: false, error: 'Nama penerima / pembeli wajib diisi.' };
-    }
-    if (!customer_phone?.trim() || customer_phone.length < 8) {
-      return { success: false, error: 'Nomor WhatsApp / telepon wajib diisi dengan valid.' };
-    }
-    if (!shipping_address?.trim()) {
-      return { success: false, error: 'Alamat pengiriman lengkap wajib diisi.' };
-    }
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return { success: false, error: 'Keranjang pesanan masih kosong.' };
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Dual Rate Limiting on Order Creation (IP and User)
+    const { headers } = await import('next/headers');
+    const { getClientIp } = await import('@/lib/security/rate-limit');
+    const headerStore = await headers();
+    const clientIp = getClientIp(headerStore);
+
+    const ipRateLimit = checkRateLimit(`order-create:ip:${clientIp}`, RATE_LIMIT_PRESETS.checkout);
+    if (!ipRateLimit.allowed) {
+      return {
+        success: false,
+        error: 'Terlalu banyak permintaan pemesanan dari perangkat ini. Mohon tunggu 1 menit sebelum mencoba kembali.',
+      };
     }
 
-    // Calculate item subtotals and grand total
+    if (user?.id) {
+      const userRateLimit = checkRateLimit(`order-create:user:${user.id}`, RATE_LIMIT_PRESETS.checkout);
+      if (!userRateLimit.allowed) {
+        return {
+          success: false,
+          error: 'Terlalu banyak transaksi dibuat dalam waktu singkat. Mohon tunggu 1 menit.',
+        };
+      }
+    }
+
+    // Calculate item subtotals with database price verification when product_id is provided
     let subtotal = 0;
-    const sanitizedItems = items.map((item) => {
-      const itemSubtotal = Math.round(Number(item.price)) * Math.max(1, Math.round(Number(item.quantity)));
+    const sanitizedItems = [];
+    for (const item of items) {
+      let authoritativePrice = Math.max(0, Math.round(Number(item.price || 0)));
+      let productName = item.product_name;
+      let variety = item.product_variety || null;
+      let seedClass = item.seed_class || null;
+
+      if (item.product_id) {
+        const { data: dbProduct } = await supabase
+          .from('products')
+          .select('name, variety, seed_class, price, is_active')
+          .eq('id', item.product_id)
+          .maybeSingle();
+
+        if (dbProduct && dbProduct.is_active && typeof dbProduct.price === 'number') {
+          authoritativePrice = Number(dbProduct.price);
+          productName = dbProduct.name || productName;
+          variety = dbProduct.variety || variety;
+          seedClass = dbProduct.seed_class || seedClass;
+        }
+      }
+
+      const safeQuantity = Math.max(1, Math.min(10_000, Math.round(Number(item.quantity || 1))));
+      const itemSubtotal = authoritativePrice * safeQuantity;
       subtotal += itemSubtotal;
-      return {
+
+      sanitizedItems.push({
         product_id: item.product_id || null,
-        product_name: item.product_name,
-        product_variety: item.product_variety || null,
-        seed_class: item.seed_class || null,
-        price: Math.round(Number(item.price)),
-        quantity: Math.max(1, Math.round(Number(item.quantity))),
+        product_name: productName,
+        product_variety: variety,
+        seed_class: seedClass,
+        price: authoritativePrice,
+        quantity: safeQuantity,
         unit: item.unit || 'kg',
         weight_kg: Number(item.weight_kg || 1.0),
         subtotal: itemSubtotal,
-      };
-    });
+      });
+    }
 
-    const total_amount = subtotal + Math.round(Number(shipping_cost));
+    const safeShippingCost = Math.max(0, Math.min(10_000_000, Math.round(Number(shipping_cost))));
+    const total_amount = subtotal + safeShippingCost;
     const order_code = generateOrderCode();
     const isCash = payment_method_type === 'cash';
 
@@ -121,14 +167,14 @@ export async function createOrderAndGetSnapAction(
       .insert({
         order_code,
         user_id: user?.id || null,
-        customer_name: customer_name.trim(),
-        customer_phone: customer_phone.trim(),
-        customer_email: customer_email?.trim() || null,
-        shipping_address: shipping_address.trim(),
-        shipping_city: shipping_city?.trim() || null,
-        customer_latitude: typeof customer_latitude === 'number' ? customer_latitude : null,
-        customer_longitude: typeof customer_longitude === 'number' ? customer_longitude : null,
-        notes: notes?.trim() || null,
+        customer_name,
+        customer_phone,
+        customer_email,
+        shipping_address,
+        shipping_city,
+        customer_latitude,
+        customer_longitude,
+        notes,
         subtotal,
         shipping_cost: Math.round(Number(shipping_cost)),
         total_amount,
@@ -260,20 +306,21 @@ export async function createOrderAndGetSnapAction(
 }
 
 /**
- * Public/Webhook Action: Mark order payment as settled / paid & ensure stock is reduced
+ * Secure Action: Mark order payment as settled / paid & ensure stock is reduced
+ * Enforces server-side Midtrans status check or Admin role authorization
  */
 export async function markOrderPaymentSuccessAction(
-  orderCode: string,
-  paymentDetails?: { payment_method?: string; transaction_id?: string }
+  orderIdentifier: string,
+  paymentDetails?: { payment_method?: string; transaction_id?: string; isWebhookVerified?: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
 
-    // 1. Fetch order
+    // 1. Fetch order by order_code or ID
     const { data: order, error: findError } = await supabase
       .from('orders')
-      .select('id, payment_status')
-      .eq('order_code', orderCode)
+      .select('id, order_code, payment_status, total_amount')
+      .or(`order_code.eq.${orderIdentifier},id.eq.${orderIdentifier}`)
       .maybeSingle();
 
     if (findError || !order) {
@@ -285,9 +332,61 @@ export async function markOrderPaymentSuccessAction(
       return { success: true };
     }
 
+    // 2. Authorization & Verification Gate
+    let isAuthorized = paymentDetails?.isWebhookVerified === true;
+
+    if (!isAuthorized) {
+      // Check if current user is an Admin
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile?.role === 'admin' || user.user_metadata?.role === 'admin') {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    // If not verified by webhook or admin, verify directly with Midtrans Core API
+    if (!isAuthorized) {
+      try {
+        const { checkTransactionStatus } = await import('@/lib/midtrans/server');
+        const midtransRes = (await checkTransactionStatus(order.order_code)) as {
+          transaction_status?: string;
+          fraud_status?: string;
+          gross_amount?: string | number;
+        };
+
+        const status = midtransRes?.transaction_status;
+        const fraud = midtransRes?.fraud_status;
+
+        if ((status === 'settlement' || status === 'capture') && fraud !== 'challenge') {
+          isAuthorized = true;
+        } else {
+          return {
+            success: false,
+            error: `Status pembayaran belum terkonfirmasi oleh Midtrans (Status saat ini: ${status || 'unknown'}).`,
+          };
+        }
+      } catch (midtransErr: unknown) {
+        console.error('[Midtrans Verification Error]:', midtransErr);
+        return {
+          success: false,
+          error: 'Gagal memverifikasi status pembayaran dengan Midtrans.',
+        };
+      }
+    }
+
     const now = new Date().toISOString();
 
-    // 2. Update order to paid status
+    // 3. Update order to paid status
     const { error: updateError } = await supabase
       .from('orders')
       .update({
@@ -304,7 +403,7 @@ export async function markOrderPaymentSuccessAction(
       return { success: false, error: updateError.message };
     }
 
-    // 3. Update payment table to completed
+    // 4. Update payment table to completed
     await supabase
       .from('payments')
       .update({
@@ -315,7 +414,7 @@ export async function markOrderPaymentSuccessAction(
       })
       .eq('order_id', order.id);
 
-    // 3. Fallback explicit stock deduction check
+    // 5. Fallback explicit stock deduction check
     const { data: items } = await supabase
       .from('order_items')
       .select('product_id, quantity')
@@ -341,15 +440,15 @@ export async function markOrderPaymentSuccessAction(
       }
     }
 
-    // 4. Send Payment Success Notification
+    // 6. Send Payment Success Notification
     await sendNotificationAction({
       title: '✅ Pembayaran Lunas & Pesanan Diproses!',
-      message: `Pembayaran pesanan ${orderCode} telah berhasil dikonfirmasi. Stok benih telah dikurangi di sistem.`,
+      message: `Pembayaran pesanan ${order.order_code} telah berhasil dikonfirmasi. Stok benih telah dikurangi di sistem.`,
       type: 'payment_success',
       recipient_role: 'all',
       order_id: order.id,
       data: {
-        order_code: orderCode,
+        order_code: order.order_code,
         payment_method: paymentDetails?.payment_method || 'midtrans',
         url: '/admin',
       },
@@ -373,7 +472,7 @@ export async function markOrderPaymentSuccessAction(
  */
 export async function getAdminOrderStats(): Promise<AdminOrderStats> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     const { data: rpcStats, error: rpcError } = await supabase.rpc('admin_get_order_stats');
     if (!rpcError && rpcStats) {
@@ -437,7 +536,7 @@ export async function getAdminOrderStats(): Promise<AdminOrderStats> {
  */
 export async function getAdminOrdersList(): Promise<Order[]> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     // 1. Try RPC function first
     const { data: rpcOrders, error: rpcError } = await supabase.rpc('admin_list_orders');

@@ -90,8 +90,10 @@ export async function createSnapTransaction(
   };
 }
 
+import { verifyMidtransSignatureTimingSafe } from '@/lib/security/headers';
+
 /**
- * Verify webhook notification signature from Midtrans
+ * Verify webhook notification signature from Midtrans using timing-safe comparison
  * Formula: SHA512(order_id + status_code + gross_amount + ServerKey)
  */
 export function verifyMidtransSignature(params: {
@@ -103,13 +105,10 @@ export function verifyMidtransSignature(params: {
   const { serverKey } = getMidtransConfig();
   if (!serverKey) return false;
 
-  const payload = `${params.orderId}${params.statusCode}${params.grossAmount}${serverKey}`;
-  const calculatedSignature = crypto
-    .createHash('sha512')
-    .update(payload)
-    .digest('hex');
-
-  return calculatedSignature.toLowerCase() === params.signatureKey.toLowerCase();
+  return verifyMidtransSignatureTimingSafe({
+    ...params,
+    serverKey,
+  });
 }
 
 /**

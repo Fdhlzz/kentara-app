@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { getSecurityHeadersList } from "./lib/security/headers";
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -12,6 +13,14 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: getSecurityHeadersList(),
+      },
+    ];
   },
 };
 

@@ -1,8 +1,14 @@
 'use server';
 
 import { cache } from 'react';
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import {
+  sanitizeString,
+  validateEmail,
+  validatePhone,
+  validatePasswordStrength,
+} from '@/lib/security/validation';
+import { checkRateLimit, RATE_LIMIT_PRESETS } from '@/lib/security/rate-limit';
 import type { AuthActionResult, UserProfile, UserRole } from '@/types/auth';
 
 /**
@@ -56,23 +62,50 @@ export const getCurrentUserProfile = cache(async (): Promise<UserProfile | null>
 });
 
 /**
- * Server Action untuk proses Login dengan penanganan error komprehensif
+ * Server Action untuk proses Login dengan penanganan error komprehensif & rate limiting
  */
 export async function loginAction(formData: FormData): Promise<AuthActionResult> {
-  const email = String(formData.get('email') || '').trim();
-  const password = String(formData.get('password') || '');
+  const rawEmail = String(formData.get('email') || '');
+  const rawPassword = String(formData.get('password') || '');
 
-  if (!email) {
+  const emailValidation = validateEmail(rawEmail);
+  if (!emailValidation.valid || !emailValidation.sanitized) {
     return {
       success: false,
-      error: 'Alamat email wajib diisi.',
+      error: emailValidation.error || 'Alamat email tidak valid.',
     };
   }
 
-  if (!password) {
+  const passwordValidation = validatePasswordStrength(rawPassword);
+  if (!passwordValidation.valid) {
     return {
       success: false,
-      error: 'Kata sandi wajib diisi.',
+      error: passwordValidation.error || 'Kata sandi tidak valid.',
+    };
+  }
+
+  const email = emailValidation.sanitized;
+  const password = rawPassword;
+
+  // Dual-key Rate Limiting (IP + Account email)
+  const { headers } = await import('next/headers');
+  const { getClientIp } = await import('@/lib/security/rate-limit');
+  const headerStore = await headers();
+  const clientIp = getClientIp(headerStore);
+
+  const ipRateLimit = checkRateLimit(`login-ip:${clientIp}`, RATE_LIMIT_PRESETS.auth);
+  if (!ipRateLimit.allowed) {
+    return {
+      success: false,
+      error: 'Terlalu banyak percobaan dari perangkat ini. Mohon tunggu 1 menit sebelum mencoba kembali.',
+    };
+  }
+
+  const emailRateLimit = checkRateLimit(`login-email:${email}`, RATE_LIMIT_PRESETS.auth);
+  if (!emailRateLimit.allowed) {
+    return {
+      success: false,
+      error: 'Terlalu banyak percobaan masuk untuk akun ini. Mohon tunggu 1 menit sebelum mencoba kembali.',
     };
   }
 
@@ -130,25 +163,60 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 }
 
 /**
- * Server Action untuk proses Registrasi dengan penanganan error komprehensif
+ * Server Action untuk proses Registrasi dengan penanganan error komprehensif & rate limiting
  */
 export async function registerAction(formData: FormData): Promise<AuthActionResult> {
-  const fullName = String(formData.get('full_name') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const email = String(formData.get('email') || '').trim();
-  const password = String(formData.get('password') || '');
+  const fullName = sanitizeString(formData.get('full_name'), 100);
+  const rawPhone = String(formData.get('phone') || '').trim();
+  const rawEmail = String(formData.get('email') || '').trim();
+  const rawPassword = String(formData.get('password') || '');
   const role: UserRole = 'petani';
 
-  if (!fullName) {
-    return { success: false, error: 'Nama lengkap wajib diisi.' };
+  if (!fullName || fullName.length < 2) {
+    return { success: false, error: 'Nama lengkap wajib diisi (minimal 2 karakter).' };
   }
-  if (!email) {
-    return { success: false, error: 'Alamat email wajib diisi.' };
+
+  const emailValidation = validateEmail(rawEmail);
+  if (!emailValidation.valid || !emailValidation.sanitized) {
+    return { success: false, error: emailValidation.error || 'Alamat email tidak valid.' };
   }
-  if (!password || password.length < 6) {
+
+  const passwordValidation = validatePasswordStrength(rawPassword);
+  if (!passwordValidation.valid) {
+    return { success: false, error: passwordValidation.error || 'Kata sandi tidak valid.' };
+  }
+
+  let formattedPhone: string | null = null;
+  if (rawPhone) {
+    const phoneValidation = validatePhone(rawPhone);
+    if (!phoneValidation.valid) {
+      return { success: false, error: phoneValidation.error || 'Format nomor telepon tidak valid.' };
+    }
+    formattedPhone = phoneValidation.formatted || null;
+  }
+
+  const email = emailValidation.sanitized;
+  const password = rawPassword;
+
+  // Dual-key Rate Limiting on Registration Attempts
+  const { headers } = await import('next/headers');
+  const { getClientIp } = await import('@/lib/security/rate-limit');
+  const headerStore = await headers();
+  const clientIp = getClientIp(headerStore);
+
+  const ipRateLimit = checkRateLimit(`register-ip:${clientIp}`, RATE_LIMIT_PRESETS.auth);
+  if (!ipRateLimit.allowed) {
     return {
       success: false,
-      error: 'Kata sandi minimal harus terdiri dari 6 karakter.',
+      error: 'Terlalu banyak permintaan pendaftaran dari perangkat ini. Silakan coba beberapa saat lagi.',
+    };
+  }
+
+  const emailRateLimit = checkRateLimit(`register-email:${email}`, RATE_LIMIT_PRESETS.auth);
+  if (!emailRateLimit.allowed) {
+    return {
+      success: false,
+      error: 'Terlalu banyak permintaan pendaftaran akun. Silakan coba beberapa saat lagi.',
     };
   }
 
@@ -160,7 +228,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       options: {
         data: {
           full_name: fullName,
-          phone: phone || null,
+          phone: formattedPhone,
           role: role,
         },
       },
@@ -188,7 +256,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     await supabase.from('profiles').upsert({
       id: data.user.id,
       full_name: fullName,
-      phone: phone || null,
+      phone: formattedPhone,
       role: role,
     });
 
@@ -226,4 +294,3 @@ export async function logoutAction(): Promise<AuthActionResult> {
     return { success: false, error: message };
   }
 }
-

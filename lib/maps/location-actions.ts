@@ -20,6 +20,19 @@ export async function upsertCourierLocationAction(
       return { success: false, error: 'Sesi kurir tidak valid.' };
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const role = profile?.role || user.user_metadata?.role;
+    if (role !== 'kurir' && role !== 'admin') {
+      return { success: false, error: 'Akses ditolak: Hanya akun kurir yang dapat memperbarui lokasi pengantaran.' };
+    }
+
+    const { validateCoordinates } = await import('@/lib/security/validation');
+
     const {
       order_id = null,
       latitude,
@@ -31,8 +44,9 @@ export async function upsertCourierLocationAction(
     } = input;
 
     // Validate coordinates range
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      return { success: false, error: 'Koordinat GPS di luar rentang valid.' };
+    const coordCheck = validateCoordinates(latitude, longitude);
+    if (!coordCheck.valid || coordCheck.lat === undefined || coordCheck.lng === undefined) {
+      return { success: false, error: coordCheck.error || 'Koordinat GPS di luar rentang valid.' };
     }
 
     const now = new Date().toISOString();
@@ -41,11 +55,11 @@ export async function upsertCourierLocationAction(
       {
         courier_id: user.id,
         order_id,
-        latitude,
-        longitude,
-        heading: heading || 0,
-        speed: speed || 0,
-        accuracy: accuracy || null,
+        latitude: coordCheck.lat,
+        longitude: coordCheck.lng,
+        heading: Math.max(0, Math.min(360, Number(heading || 0))),
+        speed: Math.max(0, Math.min(300, Number(speed || 0))),
+        accuracy: accuracy ? Math.max(0, Number(accuracy)) : null,
         is_active,
         updated_at: now,
       },

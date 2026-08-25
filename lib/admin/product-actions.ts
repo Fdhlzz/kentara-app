@@ -187,34 +187,41 @@ export async function getProductBySlugOrId(slugOrId: string): Promise<Product | 
 export async function createProductAction(formData: FormData): Promise<ProductActionResult> {
   try {
     const { supabase } = await verifyAdminRole();
+    const { validateProductInput, sanitizeString } = await import('@/lib/security/validation');
 
-    const name = String(formData.get('name') || '').trim();
-    const variety = String(formData.get('variety') || '').trim();
-    const seed_class = String(formData.get('seed_class') || '').trim();
-    const cert_number = String(formData.get('cert_number') || '').trim() || null;
-    const size_category = String(formData.get('size_category') || 'M (30-50g)').trim();
-    const sprout_status = String(formData.get('sprout_status') || 'siap_tanam').trim();
+    const name = sanitizeString(formData.get('name'), 150);
+    const variety = sanitizeString(formData.get('variety'), 100);
+    const seed_class = sanitizeString(formData.get('seed_class'), 50);
+    const cert_number = sanitizeString(formData.get('cert_number'), 100) || null;
+    const size_category = sanitizeString(formData.get('size_category') || 'M (30-50g)', 50);
+    const sprout_status = sanitizeString(formData.get('sprout_status') || 'siap_tanam', 50);
     const price = Number(formData.get('price') || 0);
-    const unit = String(formData.get('unit') || 'kg').trim();
+    const unit = sanitizeString(formData.get('unit') || 'kg', 20);
     const stock = Number(formData.get('stock') || 0);
     const min_order = Number(formData.get('min_order') || 1);
     const weight_per_unit = Number(formData.get('weight_per_unit') || 1.0);
-    const origin_location = String(formData.get('origin_location') || '').trim();
-    const elevation_masl = String(formData.get('elevation_masl') || '').trim() || null;
-    const harvest_days = String(formData.get('harvest_days') || '').trim() || null;
-    const potential_yield = String(formData.get('potential_yield') || '').trim() || null;
-    const resilience = String(formData.get('resilience') || '').trim() || null;
-    const description = String(formData.get('description') || '').trim() || null;
-    const image_url = String(formData.get('image_url') || '').trim() || null;
+    const origin_location = sanitizeString(formData.get('origin_location'), 150);
+    const elevation_masl = sanitizeString(formData.get('elevation_masl'), 100) || null;
+    const harvest_days = sanitizeString(formData.get('harvest_days'), 100) || null;
+    const potential_yield = sanitizeString(formData.get('potential_yield'), 100) || null;
+    const resilience = sanitizeString(formData.get('resilience'), 100) || null;
+    const description = sanitizeString(formData.get('description'), 2000) || null;
+    const image_url = sanitizeString(formData.get('image_url'), 500) || null;
     const is_featured = formData.get('is_featured') === 'true' || formData.get('is_featured') === 'on';
     const is_active = formData.get('is_active') === 'true' || formData.get('is_active') === 'on';
 
-    if (!name) return { success: false, error: 'Nama produk benih kentang wajib diisi.' };
-    if (!variety) return { success: false, error: 'Varietas benih kentang wajib dipilih/diisi.' };
-    if (!seed_class) return { success: false, error: 'Kelas generasi benih (G0-G4) wajib dipilih.' };
-    if (price < 0 || isNaN(price)) return { success: false, error: 'Harga produk tidak valid.' };
-    if (stock < 0 || isNaN(stock)) return { success: false, error: 'Jumlah stok tidak valid.' };
-    if (!origin_location) return { success: false, error: 'Asal daerah penangkaran benih wajib diisi.' };
+    const validation = validateProductInput({
+      name,
+      variety,
+      seed_class,
+      price,
+      stock,
+      origin_location,
+    });
+
+    if (!validation.valid) {
+      return { success: false, error: validation.error || 'Data produk benih kentang tidak valid.' };
+    }
 
     // Create unique slug
     let baseSlug = slugify(name);
@@ -245,8 +252,8 @@ export async function createProductAction(formData: FormData): Promise<ProductAc
         price,
         unit,
         stock,
-        min_order: Math.max(1, min_order),
-        weight_per_unit,
+        min_order: Math.max(1, Math.min(10000, min_order)),
+        weight_per_unit: Math.max(0.01, Math.min(1000, weight_per_unit)),
         origin_location,
         elevation_masl,
         harvest_days,
@@ -285,36 +292,43 @@ export async function updateProductAction(
 ): Promise<ProductActionResult> {
   try {
     const { supabase } = await verifyAdminRole();
+    const { validateProductInput, sanitizeString } = await import('@/lib/security/validation');
 
-    if (!id) return { success: false, error: 'ID produk tidak ditemukan.' };
+    if (!id || typeof id !== 'string') return { success: false, error: 'ID produk tidak ditemukan.' };
 
-    const name = String(formData.get('name') || '').trim();
-    const variety = String(formData.get('variety') || '').trim();
-    const seed_class = String(formData.get('seed_class') || '').trim();
-    const cert_number = String(formData.get('cert_number') || '').trim() || null;
-    const size_category = String(formData.get('size_category') || 'M (30-50g)').trim();
-    const sprout_status = String(formData.get('sprout_status') || 'siap_tanam').trim();
+    const name = sanitizeString(formData.get('name'), 150);
+    const variety = sanitizeString(formData.get('variety'), 100);
+    const seed_class = sanitizeString(formData.get('seed_class'), 50);
+    const cert_number = sanitizeString(formData.get('cert_number'), 100) || null;
+    const size_category = sanitizeString(formData.get('size_category') || 'M (30-50g)', 50);
+    const sprout_status = sanitizeString(formData.get('sprout_status') || 'siap_tanam', 50);
     const price = Number(formData.get('price') || 0);
-    const unit = String(formData.get('unit') || 'kg').trim();
+    const unit = sanitizeString(formData.get('unit') || 'kg', 20);
     const stock = Number(formData.get('stock') || 0);
     const min_order = Number(formData.get('min_order') || 1);
     const weight_per_unit = Number(formData.get('weight_per_unit') || 1.0);
-    const origin_location = String(formData.get('origin_location') || '').trim();
-    const elevation_masl = String(formData.get('elevation_masl') || '').trim() || null;
-    const harvest_days = String(formData.get('harvest_days') || '').trim() || null;
-    const potential_yield = String(formData.get('potential_yield') || '').trim() || null;
-    const resilience = String(formData.get('resilience') || '').trim() || null;
-    const description = String(formData.get('description') || '').trim() || null;
-    const image_url = String(formData.get('image_url') || '').trim() || null;
+    const origin_location = sanitizeString(formData.get('origin_location'), 150);
+    const elevation_masl = sanitizeString(formData.get('elevation_masl'), 100) || null;
+    const harvest_days = sanitizeString(formData.get('harvest_days'), 100) || null;
+    const potential_yield = sanitizeString(formData.get('potential_yield'), 100) || null;
+    const resilience = sanitizeString(formData.get('resilience'), 100) || null;
+    const description = sanitizeString(formData.get('description'), 2000) || null;
+    const image_url = sanitizeString(formData.get('image_url'), 500) || null;
     const is_featured = formData.get('is_featured') === 'true' || formData.get('is_featured') === 'on';
     const is_active = formData.get('is_active') === 'true' || formData.get('is_active') === 'on';
 
-    if (!name) return { success: false, error: 'Nama produk benih kentang wajib diisi.' };
-    if (!variety) return { success: false, error: 'Varietas benih kentang wajib diisi.' };
-    if (!seed_class) return { success: false, error: 'Kelas generasi benih wajib dipilih.' };
-    if (price < 0 || isNaN(price)) return { success: false, error: 'Harga produk tidak valid.' };
-    if (stock < 0 || isNaN(stock)) return { success: false, error: 'Jumlah stok tidak valid.' };
-    if (!origin_location) return { success: false, error: 'Asal lokasi penangkaran wajib diisi.' };
+    const validation = validateProductInput({
+      name,
+      variety,
+      seed_class,
+      price,
+      stock,
+      origin_location,
+    });
+
+    if (!validation.valid) {
+      return { success: false, error: validation.error || 'Data produk benih kentang tidak valid.' };
+    }
 
     const { data: updated, error: updateError } = await supabase
       .from('products')
@@ -328,8 +342,8 @@ export async function updateProductAction(
         price,
         unit,
         stock,
-        min_order: Math.max(1, min_order),
-        weight_per_unit,
+        min_order: Math.max(1, Math.min(10000, min_order)),
+        weight_per_unit: Math.max(0.01, Math.min(1000, weight_per_unit)),
         origin_location,
         elevation_masl,
         harvest_days,

@@ -37,7 +37,7 @@ async function verifyAdminRole() {
  */
 export async function getAdminPaymentStats(): Promise<AdminPaymentStats> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     const { data: rpcStats, error: rpcError } = await supabase.rpc('admin_get_payment_stats');
     if (!rpcError && rpcStats) {
@@ -115,7 +115,7 @@ export async function getAdminPaymentStats(): Promise<AdminPaymentStats> {
  */
 export async function getAdminPaymentsList(): Promise<Payment[]> {
   try {
-    const supabase = await createClient();
+    const { supabase } = await verifyAdminRole();
 
     // 1. Try RPC function
     const { data: rpcPayments, error: rpcError } = await supabase.rpc('admin_list_payments');
