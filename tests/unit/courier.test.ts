@@ -81,23 +81,13 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
-  it('should select appropriate map tile provider based on active theme mode (voyager for light, dark for dark)', () => {
-    function getThemeMapTile(theme: 'light' | 'dark' | string) {
-      const activeTile = theme === 'dark' ? 'dark' : 'voyager';
-      return {
-        activeTile,
-        provider: TILE_PROVIDERS[activeTile],
-        routeColor: theme === 'dark' ? '#3b82f6' : '#2563eb',
-      };
-    }
+  it('should use clean bright daylight map tiles (voyager) for optimal road and farm visibility', () => {
+    const activeTile = 'voyager';
+    const provider = TILE_PROVIDERS[activeTile];
 
-    const lightModeMap = getThemeMapTile('light');
-    expect(lightModeMap.activeTile).toBe('voyager');
-    expect(lightModeMap.provider.url).toContain('voyager');
-
-    const darkModeMap = getThemeMapTile('dark');
-    expect(darkModeMap.activeTile).toBe('dark');
-    expect(darkModeMap.provider.url).toContain('dark_all');
+    expect(activeTile).toBe('voyager');
+    expect(provider.url).toContain('voyager');
+    expect(provider.maxZoom).toBe(20);
   });
 
   it('should toggle sheet minimization while preserving bottom swipe action button', () => {
