@@ -441,7 +441,7 @@ export function CourierTaskModal({
         {/* Swipe Handle Indicator */}
         <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto -mt-1" />
 
-        {/* Address & Payment Information */}
+        {/* Address & Payment Information (Privacy Enforced: Price shown ONLY for Cash COD) */}
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -455,10 +455,18 @@ export function CourierTaskModal({
             </div>
 
             <div className="text-right shrink-0">
-              <span className="text-[10px] text-zinc-400 block font-medium">Total Tagihan</span>
-              <span className="text-base font-black text-emerald-700 dark:text-emerald-400">
-                Rp {order.total_amount.toLocaleString('id-ID')}
+              <span className="text-[10px] text-zinc-400 block font-medium">
+                {isCashOrder ? 'Tagihan Tunai COD' : 'Status Tagihan'}
               </span>
+              {isCashOrder ? (
+                <span className="text-base font-black text-amber-700 dark:text-amber-400">
+                  Rp {order.total_amount.toLocaleString('id-ID')}
+                </span>
+              ) : (
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800 inline-block mt-0.5">
+                  Lunas Online (Rp 0)
+                </span>
+              )}
             </div>
           </div>
 
@@ -486,18 +494,20 @@ export function CourierTaskModal({
                       : 'text-emerald-900 dark:text-emerald-200'
                   }`}
                 >
-                  {isCashOrder ? '💵 Bayar Tunai di Tempat (COD)' : '💳 Lunas Online (Midtrans)'}
+                  {isCashOrder
+                    ? `💵 Tagih Uang Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
+                    : '💳 Lunas Online (Jangan Minta Uang)'}
                 </span>
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
                   {isCashOrder
-                    ? `Wajib tagih uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli`
-                    : 'Pesanan telah dibayar. Jangan menagih uang kepada pembeli.'}
+                    ? `Wajib kumpulkan uang pas Rp ${order.total_amount.toLocaleString('id-ID')} dari pembeli saat serah terima.`
+                    : 'Pesanan telah dibayar lunas online. Anda tidak perlu menagih uang kepada pembeli.'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Expandable Ordered Seed Items */}
+          {/* Expandable Ordered Seed Items (Privacy Enforced: Subtotals hidden) */}
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 overflow-hidden text-xs">
             <button
               type="button"
@@ -516,8 +526,8 @@ export function CourierTaskModal({
                 {order.items?.map((item, idx) => (
                   <div key={idx} className="pt-1.5 flex justify-between font-medium text-[11px] text-zinc-800 dark:text-zinc-200">
                     <span>{item.quantity} {item.unit} &times; {item.product_name}</span>
-                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                      Rp {item.subtotal.toLocaleString('id-ID')}
+                    <span className="font-semibold text-zinc-500">
+                      Muatan Siap Serah
                     </span>
                   </div>
                 ))}
@@ -581,7 +591,7 @@ export function CourierTaskModal({
               <SwipeButton
                 text={
                   isCashOrder
-                    ? 'Geser untuk Terima Kas COD & Selesai ➔'
+                    ? `Geser untuk Terima Kas Tunai (Rp ${order.total_amount.toLocaleString('id-ID')}) ➔`
                     : 'Geser untuk Selesaikan Pengantaran ➔'
                 }
                 disabledText={`Terkunci: Belum Tiba (${distanceKm} km lagi)`}
@@ -703,7 +713,7 @@ export function CourierTaskModal({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Delivery Summary Box */}
+          {/* Delivery Summary Box (Privacy Enforced) */}
           <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800 text-left space-y-2.5 text-xs">
             <div className="flex justify-between items-center pb-2 border-b border-zinc-200 dark:border-zinc-800">
               <span className="text-zinc-500 font-medium">Kode Pesanan:</span>
@@ -726,16 +736,18 @@ export function CourierTaskModal({
                     : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
                 }`}
               >
-                {isCashOrder ? '💵 Kas COD Diterima' : '💳 Lunas Online Gateway'}
+                {isCashOrder ? '💵 Kas COD Dikumpulkan' : '💳 Lunas Online (Midtrans)'}
               </Badge>
             </div>
 
-            <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800 font-extrabold text-emerald-700 dark:text-emerald-400">
-              <span>Total Nilai Pesanan:</span>
-              <span className="text-sm font-black">
-                Rp {order.total_amount.toLocaleString('id-ID')}
-              </span>
-            </div>
+            {isCashOrder && (
+              <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800 font-extrabold text-amber-700 dark:text-amber-400">
+                <span>Total Kas COD Diterima:</span>
+                <span className="text-sm font-black">
+                  Rp {order.total_amount.toLocaleString('id-ID')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Countdown Redirect Indicator */}

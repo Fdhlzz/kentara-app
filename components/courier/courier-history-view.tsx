@@ -79,7 +79,7 @@ export function CourierHistoryView({ orders }: CourierHistoryViewProps) {
           <span className="text-[10px] uppercase font-bold text-zinc-400 block">
             Total Kas COD Terkumpul
           </span>
-          <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 block">
+          <span className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 block">
             Rp {totalCashCollected.toLocaleString('id-ID')}
           </span>
         </Card>
@@ -133,71 +133,81 @@ export function CourierHistoryView({ orders }: CourierHistoryViewProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => (
-            <Card
-              key={order.id}
-              className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-2.5"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="font-mono font-bold text-xs text-zinc-900 dark:text-white block">
-                    {order.order_code}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(order.created_at).toLocaleDateString('id-ID', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
+          {filteredOrders.map((order) => {
+            const isCash = order.payment_gateway === 'cash';
+
+            return (
+              <Card
+                key={order.id}
+                className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-2.5"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="font-mono font-bold text-xs text-zinc-900 dark:text-white block">
+                      {order.order_code}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(order.created_at).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-semibold">
+                    ✅ Selesai Diterima
+                  </Badge>
                 </div>
 
-                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-semibold">
-                  ✅ Selesai Diterima
-                </Badge>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 text-xs space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                    {order.customer_name}
-                  </span>
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    Rp {order.total_amount.toLocaleString('id-ID')}
-                  </span>
+                <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 text-xs space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                      {order.customer_name}
+                    </span>
+                    {isCash ? (
+                      <span className="font-extrabold text-amber-600 dark:text-amber-400">
+                        Kas COD: Rp {order.total_amount.toLocaleString('id-ID')}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                        Lunas Online
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0 text-zinc-400" />
+                    <span>{order.shipping_address}</span>
+                  </p>
                 </div>
-                <p className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
-                  <MapPin className="h-3 w-3 shrink-0 text-zinc-400" />
-                  <span>{order.shipping_address}</span>
-                </p>
-              </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <Badge
-                  className={`text-[9px] ${
-                    order.payment_gateway === 'cash'
-                      ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'
-                      : 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300'
-                  }`}
-                >
-                  {order.payment_gateway === 'cash' ? '💵 Bayar Tunai (COD)' : '💳 Lunas Online'}
-                </Badge>
+                <div className="flex items-center justify-between pt-1">
+                  <Badge
+                    className={`text-[9px] ${
+                      isCash
+                        ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300'
+                    }`}
+                  >
+                    {isCash ? '💵 Bayar Tunai (COD)' : '💳 Lunas Online'}
+                  </Badge>
 
-                <Button
-                  onClick={() => setSelectedOrder(order)}
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2.5 text-xs text-blue-600 hover:text-blue-700 gap-1"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  <span>Lihat Rincian</span>
-                </Button>
-              </div>
-            </Card>
-          ))}
+                  <Button
+                    onClick={() => setSelectedOrder(order)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2.5 text-xs text-blue-600 hover:text-blue-700 gap-1 cursor-pointer"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Lihat Rincian</span>
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -237,7 +247,9 @@ export function CourierHistoryView({ orders }: CourierHistoryViewProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Metode Bayar:</span>
-                  <span>{selectedOrder.payment_gateway === 'cash' ? 'Tunai (COD)' : 'Gerbang Online'}</span>
+                  <span className="font-semibold">
+                    {selectedOrder.payment_gateway === 'cash' ? '💵 Tunai (COD)' : '💳 Gerbang Online Midtrans'}
+                  </span>
                 </div>
                 {selectedOrder.paid_at && (
                   <div className="flex justify-between">
@@ -249,7 +261,7 @@ export function CourierHistoryView({ orders }: CourierHistoryViewProps) {
                 )}
               </div>
 
-              {/* Items List */}
+              {/* Items List (Privacy Enforced) */}
               <div className="space-y-1.5 text-xs">
                 <span className="font-bold text-zinc-700 dark:text-zinc-300 block text-[11px] uppercase">
                   Daftar Benih yang Diserahkan:
@@ -258,13 +270,15 @@ export function CourierHistoryView({ orders }: CourierHistoryViewProps) {
                   {selectedOrder.items?.map((it, idx) => (
                     <div key={idx} className="py-1.5 flex justify-between">
                       <span>{it.quantity} {it.unit} &times; {it.product_name}</span>
-                      <span className="font-semibold">Rp {it.subtotal.toLocaleString('id-ID')}</span>
+                      <span className="font-semibold text-zinc-400">Terserah</span>
                     </div>
                   ))}
-                  <div className="pt-2 flex justify-between font-bold text-emerald-700 dark:text-emerald-400">
-                    <span>Total Pembayaran</span>
-                    <span>Rp {selectedOrder.total_amount.toLocaleString('id-ID')}</span>
-                  </div>
+                  {selectedOrder.payment_gateway === 'cash' && (
+                    <div className="pt-2 flex justify-between font-black text-amber-700 dark:text-amber-400">
+                      <span>Total Kas COD Diterima:</span>
+                      <span>Rp {selectedOrder.total_amount.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

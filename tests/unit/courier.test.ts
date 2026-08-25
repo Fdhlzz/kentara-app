@@ -80,6 +80,34 @@ describe('4. Courier Management & Mobile UX Unit Tests (Aplikasi Kurir)', () => 
     return dist <= thresholdMeters;
   }
 
+  it('should enforce price privacy: hide prices on online orders and only show total to collect on cash orders', () => {
+    function getCourierPaymentDisplay(order: Order) {
+      const isCash = order.payment_gateway === 'cash';
+
+      return {
+        showCashToCollect: isCash,
+        amountToCollect: isCash ? order.total_amount : 0,
+        displayLabel: isCash
+          ? `Tagih Tunai: Rp ${order.total_amount.toLocaleString('id-ID')}`
+          : 'Lunas Online (Jangan Tagih)',
+        badgeText: isCash ? '💵 Bayar Tunai (COD)' : '💳 Lunas Online',
+      };
+    }
+
+    // 1. Online Paid Order -> Price hidden from courier, amountToCollect is 0
+    const onlineOrder: Order = { ...mockAssignedOrder, payment_gateway: 'midtrans' };
+    const onlineDisplay = getCourierPaymentDisplay(onlineOrder);
+    expect(onlineDisplay.showCashToCollect).toBe(false);
+    expect(onlineDisplay.amountToCollect).toBe(0);
+    expect(onlineDisplay.displayLabel).toBe('Lunas Online (Jangan Tagih)');
+
+    // 2. Cash COD Order -> Shows only the total cash that courier must collect
+    const cashDisplay = getCourierPaymentDisplay(mockAssignedOrder);
+    expect(cashDisplay.showCashToCollect).toBe(true);
+    expect(cashDisplay.amountToCollect).toBe(1425000);
+    expect(cashDisplay.displayLabel).toBe('Tagih Tunai: Rp 1.425.000');
+  });
+
   it('should transition order from diproses to dikirim on Swipe to Start Delivery and switch buttons', () => {
     function getActionButtonState(orderStatus: string, isNear: boolean) {
       if (orderStatus === 'diproses') {

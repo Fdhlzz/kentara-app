@@ -179,10 +179,18 @@ export function CourierAppShell({ profile, orders = [] }: CourierAppShellProps) 
                         </div>
 
                         <div className="text-right">
-                          <span className="text-[10px] text-zinc-400 block font-medium">Tagihan</span>
-                          <span className="text-sm font-black text-emerald-700 dark:text-emerald-400">
-                            Rp {task.total_amount.toLocaleString('id-ID')}
+                          <span className="text-[10px] text-zinc-400 block font-medium">
+                            {task.payment_gateway === 'cash' ? 'Wajib Tagih Tunai' : 'Status Tagihan'}
                           </span>
+                          {task.payment_gateway === 'cash' ? (
+                            <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                              Rp {task.total_amount.toLocaleString('id-ID')}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                              Lunas Online
+                            </span>
+                          )}
                         </div>
                       </div>
 
