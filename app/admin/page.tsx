@@ -10,13 +10,14 @@ import {
   ArrowLeft,
   ShieldCheck,
   Package,
-  Sparkles,
+  ShoppingBag,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
 import { getAdminDashboardStats, getCouriersList } from '@/lib/admin/courier-actions';
 import { getAdminProductStats, getAdminProductsList } from '@/lib/admin/product-actions';
+import { getAdminOrderStats, getAdminOrdersList } from '@/lib/admin/order-actions';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { AdminViewSwitcher } from '@/components/admin/admin-view-switcher';
 
@@ -34,11 +35,13 @@ export default async function AdminPage() {
     redirect(`/${profile.role}`);
   }
 
-  const [stats, couriers, productStats, products] = await Promise.all([
+  const [stats, couriers, productStats, products, orderStats, orders] = await Promise.all([
     getAdminDashboardStats(),
     getCouriersList(),
     getAdminProductStats(),
     getAdminProductsList(),
+    getAdminOrderStats(),
+    getAdminOrdersList(),
   ]);
 
   return (
@@ -138,6 +141,23 @@ export default async function AdminPage() {
 
           <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
             <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Pesanan Masuk</span>
+              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50">
+                <ShoppingBag className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                {orderStats.totalOrders}
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                {orderStats.paidOrders} perlu ditugaskan ke kurir
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-500">Mitra Kurir</span>
               <div className="p-2 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50">
                 <Truck className="h-4 w-4" />
@@ -165,24 +185,6 @@ export default async function AdminPage() {
               <p className="text-[11px] text-zinc-400 mt-0.5">Pelanggan terdaftar</p>
             </div>
           </Card>
-
-          <Card className="p-4 sm:p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-500">Stok Tersedia</span>
-              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/50">
-                <Package className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
-                {productStats.totalStockKg.toLocaleString('id-ID')}{' '}
-                <span className="text-xs font-semibold">Kg</span>
-              </span>
-              <p className="text-[11px] text-zinc-400 mt-0.5">
-                + {productStats.totalStockKnol.toLocaleString('id-ID')} Knol G0
-              </p>
-            </div>
-          </Card>
         </div>
 
         {/* Dynamic Multi-Tab Admin Section */}
@@ -190,6 +192,8 @@ export default async function AdminPage() {
           <AdminViewSwitcher
             initialProducts={products}
             productStats={productStats}
+            initialOrders={orders}
+            orderStats={orderStats}
             initialCouriers={couriers}
             defaultTab="products"
           />

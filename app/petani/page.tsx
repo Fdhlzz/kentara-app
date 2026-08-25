@@ -8,9 +8,16 @@ import {
   ShoppingBag,
   MapPin,
   Package,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Truck,
+  ArrowRight,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { getCurrentUserProfile } from '@/lib/auth/actions';
+import { createClient } from '@/lib/supabase/server';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { DeliveryTrackingMap } from '@/components/maps/delivery-tracking-map';
 
@@ -27,6 +34,19 @@ export default async function PetaniPage() {
   if (profile.role !== 'petani') {
     redirect(`/${profile.role}`);
   }
+
+  const supabase = await createClient();
+  const { data: userOrders } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      courier:profiles!orders_courier_id_fkey(full_name, phone),
+      items:order_items(*)
+    `)
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false });
+
+  const orders = userOrders || [];
 
   return (
     <div className="min-h-screen flex flex-col bg-emerald-950/5 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -57,7 +77,7 @@ export default async function PetaniPage() {
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl shadow-xs transition"
             >
               <ShoppingBag className="h-3.5 w-3.5" />
-              <span>Beli Benih</span>
+              <span>Beli Benih Kentang</span>
             </Link>
           </div>
         </div>
@@ -104,6 +124,116 @@ export default async function PetaniPage() {
           </div>
         </div>
 
+        {/* Farmer's Recent Orders List */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white">
+                Riwayat Pesanan Benih Saya
+              </h2>
+            </div>
+            <Link
+              href="/#katalog-benih"
+              className="text-xs font-semibold text-emerald-600 hover:underline flex items-center gap-1"
+            >
+              <span>+ Pesan Lagi</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {orders.length === 0 ? (
+            <Card className="p-8 text-center rounded-2xl border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60">
+              <ShoppingBag className="h-10 w-10 mx-auto text-zinc-400 mb-2" />
+              <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                Belum ada riwayat pesanan benih
+              </h4>
+              <p className="text-xs text-zinc-500 mt-1">
+                Pilih varietas benih kentang unggulan bersertifikat di marketplace Kentara.
+              </p>
+              <Link
+                href="/#katalog-benih"
+                className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                <span>Beli Benih Sekarang</span>
+              </Link>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {orders.map((order: any) => (
+                <Card
+                  key={order.id}
+                  className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-zinc-900 dark:text-white block">
+                        {order.order_code}
+                      </span>
+                      <span className="text-[11px] text-zinc-400 flex items-center gap-1 mt-0.5">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(order.created_at).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1">
+                      {order.payment_status === 'settlement' || order.payment_status === 'paid' ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
+                          Lunas
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">
+                          Pending
+                        </Badge>
+                      )}
+                      <span className="text-[10px] font-semibold text-zinc-500 uppercase">
+                        {order.order_status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
+                    {order.items?.map((item: any, idx: number) => (
+                      <div key={idx} className="py-1.5 flex justify-between">
+                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                          {item.quantity} {item.unit} &times; {item.product_name}
+                        </span>
+                        <span className="font-bold">
+                          Rp {item.subtotal?.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-zinc-400 block">Total Pembayaran</span>
+                      <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-400">
+                        Rp {order.total_amount?.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+
+                    {order.courier?.full_name ? (
+                      <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <Truck className="h-3.5 w-3.5" /> {order.courier.full_name}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-zinc-400 italic">
+                        Menunggu Kurir
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Live Delivery Map Tracking Section */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -120,13 +250,13 @@ export default async function PetaniPage() {
 
           <DeliveryTrackingMap
             orderId="KNT-ORD-MKS-5542"
-            seedName="Benih Padi Inpari 32 Bersertifikat (10 Kg)"
+            seedName="Benih Kentang Granola L - G2 Pangalengan Bersertifikat (100 Kg)"
             courierName="Budi Santoso (Kurir Kentara)"
             courierPhone="081987654321"
             farmerName={profile.full_name}
             farmerAddress="Jl. Perintis Kemerdekaan, Tamalanrea, Kota Makassar"
-            farmerCoords={[-5.1379367, 119.4357388]} // Titik Lokasi Pembeli
-            warehouseCoords={[-5.1215, 119.4195]} // Gudang Benih Kentara Makassar
+            farmerCoords={[-5.1379367, 119.4357388]}
+            warehouseCoords={[-5.1215, 119.4195]}
           />
         </section>
       </main>

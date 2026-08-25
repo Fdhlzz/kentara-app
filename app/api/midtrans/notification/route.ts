@@ -3,6 +3,7 @@ import {
   verifyMidtransSignature,
   mapMidtransStatus,
 } from '@/lib/midtrans/server';
+import { markOrderPaymentSuccessAction } from '@/lib/admin/order-actions';
 import type { MidtransNotificationPayload } from '@/types/midtrans';
 
 export async function POST(req: Request) {
@@ -46,9 +47,13 @@ export async function POST(req: Request) {
       `[Midtrans Webhook] Transaksi ${order_id} (${transaction_id}) -> ${statusInfo.status} (${statusInfo.label}). Metode: ${payment_type}, Waktu: ${transaction_time}`
     );
 
-    // Di sini Anda dapat menambahkan sinkronisasi database (misal Supabase):
-    // const supabase = await createClient();
-    // await supabase.from('orders').update({ payment_status: statusInfo.status, midtrans_response: payload }).eq('order_id', order_id);
+    // Sinkronisasi status order & pengurangan stok otomatis
+    if (statusInfo.status === 'PAID') {
+      await markOrderPaymentSuccessAction(order_id, {
+        payment_method: payment_type,
+        transaction_id,
+      });
+    }
 
     return NextResponse.json({
       success: true,
