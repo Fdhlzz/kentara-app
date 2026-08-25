@@ -161,4 +161,29 @@ describe('6. Courier Live Location & GPS Tracking Unit Tests (Pelacakan Lokasi K
     );
     expect(nearDistance).toBeLessThan(500);
   });
+
+  it('should verify Sulawesi regional presets and default map centering coordinates', async () => {
+    const { DEFAULT_MAP_CENTER, SULAWESI_REGIONS, calculateDistanceKm } = await import(
+      '@/lib/maps/leaflet-helpers'
+    );
+
+    // Verify DEFAULT_MAP_CENTER is in Sulawesi (around Makassar / South Sulawesi)
+    expect(DEFAULT_MAP_CENTER[0]).toBeCloseTo(-5.147665, 3);
+    expect(DEFAULT_MAP_CENTER[1]).toBeCloseTo(119.432732, 3);
+
+    // Verify Sulawesi presets exist
+    expect(SULAWESI_REGIONS.makassar).toBeDefined();
+    expect(SULAWESI_REGIONS.gowa_malino).toBeDefined();
+    expect(SULAWESI_REGIONS.enrekang).toBeDefined();
+
+    // Verify distance from Makassar to Malino Gowa (~50-60 km)
+    const distMakassarToMalino = calculateDistanceKm(
+      SULAWESI_REGIONS.makassar.coords[0],
+      SULAWESI_REGIONS.makassar.coords[1],
+      SULAWESI_REGIONS.gowa_malino.coords[0],
+      SULAWESI_REGIONS.gowa_malino.coords[1]
+    );
+    expect(distMakassarToMalino).toBeGreaterThan(40);
+    expect(distMakassarToMalino).toBeLessThan(70);
+  });
 });

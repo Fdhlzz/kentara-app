@@ -31,10 +31,22 @@ export const TILE_PROVIDERS: Record<
 };
 
 /**
- * Pusat koordinat default Indonesia / Sentra Pertanian
+ * Pusat koordinat default Indonesia / Sentra Pertanian Benih Sulawesi
  */
-export const DEFAULT_MAP_CENTER: [number, number] = [-7.250445, 112.768845]; // Surabaya / Jawa Timur
+export const DEFAULT_MAP_CENTER: [number, number] = [-5.147665, 119.432732]; // Makassar / Sulawesi Selatan
 export const DEFAULT_MAP_ZOOM = 13;
+
+/**
+ * Presets Titik Sentra Pertanian & Distribusi Sulawesi
+ */
+export const SULAWESI_REGIONS = {
+  makassar: { name: 'Makassar (Sentra Distribusi)', coords: [-5.147665, 119.432732] as [number, number] },
+  gowa_malino: { name: 'Malino, Gowa (Sentra Benih Kentang)', coords: [-5.2536, 119.8557] as [number, number] },
+  enrekang: { name: 'Enrekang (Sentra Sayuran Unggul)', coords: [-3.5628, 119.7745] as [number, number] },
+  toraja: { name: 'Tana Toraja (Dataran Tinggi)', coords: [-3.0567, 119.8827] as [number, number] },
+  bone: { name: 'Watampone, Bone', coords: [-4.5387, 120.3276] as [number, number] },
+  maros: { name: 'Maros (Pertanian Padi & Hortikultura)', coords: [-5.0048, 119.5746] as [number, number] },
+};
 
 /**
  * Menghitung jarak garis lurus antara dua titik koordinat (rumus Haversine) dalam Kilometer

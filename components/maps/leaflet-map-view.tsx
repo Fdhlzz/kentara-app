@@ -152,8 +152,16 @@ export default function LeafletMapView({
         marker.bindPopup(popupContent);
         marker.addTo(markerGroup);
       });
+
+      // Auto-fit bounds or center to encompass markers
+      if (markers.length > 1 && !route && mapInstanceRef.current) {
+        const bounds = L.latLngBounds(markers.map((m) => m.position));
+        mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      } else if (markers.length === 1 && !route && mapInstanceRef.current) {
+        mapInstanceRef.current.setView(markers[0].position, Math.max(mapInstanceRef.current.getZoom(), 13));
+      }
     });
-  }, [markers]);
+  }, [markers, route]);
 
   // Update Route Polyline
   useEffect(() => {

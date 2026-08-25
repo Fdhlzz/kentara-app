@@ -712,79 +712,149 @@ export function PetaniCatalogView({
         </DialogContent>
       </Dialog>
 
-      {/* 5. CHECKOUT & PAYMENT DIALOG */}
+      {/* 5. CHECKOUT & PAYMENT DIALOG - REDESIGNED FOR MOBILE & DESKTOP */}
       <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 max-h-[88vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg font-black text-zinc-900 dark:text-white">
-              Konfirmasi Pengiriman &amp; Pembayaran
-            </DialogTitle>
-            <DialogDescription className="text-xs text-zinc-500">
-              Lengkapi data pemesan agar kurir logistik Kentara dapat mengantar langsung ke lahan Anda.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl w-[96vw] sm:w-full max-h-[92dvh] sm:max-h-[85vh] p-0 flex flex-col overflow-hidden rounded-t-[28px] sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950">
+          {/* Sticky Header */}
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-zinc-100 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-500/20">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-sm sm:text-base font-black text-zinc-900 dark:text-white leading-tight">
+                    Konfirmasi Pengiriman &amp; Pembayaran Benih
+                  </DialogTitle>
+                  <DialogDescription className="text-[11px] sm:text-xs text-zinc-500 line-clamp-1">
+                    Lengkapi alamat lahan di Sulawesi &amp; pilih metode pembayaran
+                  </DialogDescription>
+                </div>
+              </div>
+              <Badge className="hidden sm:inline-flex bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 border-0">
+                🌱 Benih Bersertifikat
+              </Badge>
+            </div>
+          </div>
 
-          <form onSubmit={handleProceedCheckout} className="space-y-3.5 my-2 text-xs">
-            {/* Contact Details */}
-            <div className="space-y-2.5">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                  Nama Pemesan / Kelompok Tani *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Contoh: Bpk. Herman"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
-                />
+          {/* Scrollable Form Body */}
+          <form id="petani-checkout-form" onSubmit={handleProceedCheckout} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+            {/* 1. Item List in Cart */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                  1. Benih yang Dipesan ({cart.length} Varietas)
+                </span>
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  Total Berat: {cartTotalWeightKg} kg
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden bg-zinc-50/60 dark:bg-zinc-900/40">
+                {cart.map(({ product, quantity }) => (
+                  <div key={product.id} className="p-3 sm:p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate">
+                          {product.name}
+                        </span>
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                          {product.seed_class}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 block">
+                        Rp {product.price.toLocaleString('id-ID')} /{product.unit} &bull; {quantity} {product.unit}
+                      </span>
+                    </div>
+
+                    <span className="font-black text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 shrink-0">
+                      Rp {(product.price * quantity).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Customer & Delivery Form */}
+            <div className="space-y-3 p-3.5 sm:p-4 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+                2. Data Pemesan &amp; Titik Lahan Pengantaran
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                    No. WhatsApp *
+                  <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Nama Pemesan / Kelompok Tani <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Contoh: Bpk. Herman (Kelompok Tani Harapan)"
+                    className="w-full h-10 sm:h-11 px-3.5 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Nomor WhatsApp Aktif <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="tel"
                     required
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="08123456789"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                    placeholder="081234567890"
+                    className="w-full h-10 sm:h-11 px-3.5 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                    Kota / Kab *
+                  <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Kota / Kabupaten di Sulawesi <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={shippingCity}
                     onChange={(e) => setShippingCity(e.target.value)}
-                    placeholder="Bandung Barat"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                    placeholder="Contoh: Gowa, Makassar, Enrekang, Maros..."
+                    className="w-full h-10 sm:h-11 px-3.5 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Catatan Khusus untuk Kurir (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Contoh: Posko tani depan gapura..."
+                    className="w-full h-10 sm:h-11 px-3.5 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                  Alamat Lengkap Lahan / Pengantaran *
+                <label className="block text-[11px] font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Alamat Lengkap Lahan / Pengantaran <span className="text-rose-500">*</span>
                 </label>
                 <textarea
-                  required
                   rows={2}
+                  required
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
-                  placeholder="Nama jalan, patokan lahan, RT/RW, Desa..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
+                  placeholder="Nama jalan, patokan lahan, RT/RW, Dusun, Desa, Kecamatan..."
+                  className="w-full p-3 text-xs sm:text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
                 />
               </div>
 
-              {/* Pinpoint Location Picker with Leaflet & Current Location Button */}
+              {/* Pinpoint Location Picker with Leaflet centered in Sulawesi */}
               <div className="pt-1">
                 <DynamicLocationPicker
                   coords={customerCoords}
@@ -792,102 +862,140 @@ export function PetaniCatalogView({
                   height="190px"
                 />
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
-                  Catatan Khusus untuk Kurir (Opsional)
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Contoh: Titipkan di pos petani..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-900 dark:text-white"
-                />
-              </div>
             </div>
 
-            {/* Payment Method Selector */}
-            <div className="space-y-1.5 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-              <label className="block text-[10px] font-bold uppercase text-zinc-400">
-                Pilih Metode Pembayaran *
-              </label>
+            {/* 3. Payment Method Choice */}
+            <div className="space-y-2 p-3.5 sm:p-4 rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-wider block">
+                3. Pilih Metode Pembayaran
+              </span>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Option 1: Midtrans Gateway */}
                 <div
                   onClick={() => setPaymentMethodType('gateway')}
-                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition flex flex-col justify-between select-none ${
                     paymentMethodType === 'gateway'
-                      ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
-                      : 'border-zinc-200 dark:border-zinc-700'
+                      ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 ring-2 ring-emerald-500/20'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <CreditCard className="h-4 w-4 text-emerald-600" />
-                    <span className="font-black text-xs text-zinc-900 dark:text-white">
-                      Online Gateway
-                    </span>
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="petani_payment_choice"
+                      value="gateway"
+                      checked={paymentMethodType === 'gateway'}
+                      onChange={() => setPaymentMethodType('gateway')}
+                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard className="h-4 w-4 text-emerald-600" />
+                        <span className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-white">
+                          Online Gateway (Midtrans)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
+                        QRIS, GoPay, ShopeePay, VA Bank (BCA, Mandiri, BRI, BNI).
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[9px] text-zinc-400 mt-1">QRIS, VA Bank, Kartu</span>
+                  <Badge className="bg-emerald-600 text-white text-[9px] font-bold self-start mt-2 px-2 py-0.5">
+                    ⚡ Otomatis &amp; Instan
+                  </Badge>
                 </div>
 
+                {/* Option 2: Cash on Delivery */}
                 <div
                   onClick={() => setPaymentMethodType('cash')}
-                  className={`p-3 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                  className={`p-3.5 rounded-2xl border-2 cursor-pointer transition flex flex-col justify-between select-none ${
                     paymentMethodType === 'cash'
-                      ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
-                      : 'border-zinc-200 dark:border-zinc-700'
+                      ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 ring-2 ring-emerald-500/20'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <Banknote className="h-4 w-4 text-amber-600" />
-                    <span className="font-black text-xs text-zinc-900 dark:text-white">
-                      Bayar Tunai (COD)
-                    </span>
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="petani_payment_choice"
+                      value="cash"
+                      checked={paymentMethodType === 'cash'}
+                      onChange={() => setPaymentMethodType('cash')}
+                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <Banknote className="h-4 w-4 text-amber-600" />
+                        <span className="font-extrabold text-xs sm:text-sm text-zinc-900 dark:text-white">
+                          Bayar Tunai di Lahan (COD)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
+                        Bayar tunai langsung ke kurir saat benih tiba di lokasi lahan.
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[9px] text-zinc-400 mt-1">Bayar ke kurir di lokasi</span>
+                  <Badge className="bg-amber-600 text-white text-[9px] font-bold self-start mt-2 px-2 py-0.5">
+                    💵 Bayar ke Kurir
+                  </Badge>
                 </div>
               </div>
             </div>
+          </form>
 
-            {/* Total Breakdown */}
-            <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 space-y-1">
-              <div className="flex justify-between text-zinc-500 text-[11px]">
-                <span>Subtotal ({cart.length} varietas):</span>
-                <span>Rp {cartSubtotal.toLocaleString('id-ID')}</span>
+          {/* Sticky Bottom Action Bar */}
+          <div className="px-4 sm:px-6 py-3.5 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/95 dark:bg-zinc-900/95 backdrop-blur-md shrink-0 space-y-3">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
+              <div className="flex flex-col">
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                  Subtotal ({cart.length} item): Rp {cartSubtotal.toLocaleString('id-ID')} + Ongkir: Rp {estimatedShipping.toLocaleString('id-ID')}
+                </span>
+                <span className="text-xs sm:text-sm font-black text-emerald-800 dark:text-emerald-400">
+                  Total Tagihan: Rp {grandTotal.toLocaleString('id-ID')}
+                </span>
               </div>
-              <div className="flex justify-between text-zinc-500 text-[11px]">
-                <span>Ongkos Kirim ({cartTotalWeightKg} kg):</span>
-                <span>Rp {estimatedShipping.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex justify-between text-xs font-black text-emerald-700 dark:text-emerald-400 pt-1 border-t border-zinc-200 dark:border-zinc-700">
-                <span>Total yang Harus Dibayar:</span>
-                <span>Rp {grandTotal.toLocaleString('id-ID')}</span>
+              <div className="text-right">
+                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
+                  {paymentMethodType === 'cash' ? 'Metode: COD Tunai' : 'Metode: Midtrans Online'}
+                </span>
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black h-13 shadow-xl gap-2 cursor-pointer"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Memproses Pesanan...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>
-                    {paymentMethodType === 'gateway'
-                      ? 'Bayar Sekarang via Gateway ➔'
-                      : 'Pesan Sekarang (Bayar COD) ➔'}
-                  </span>
-                </>
-              )}
-            </Button>
-          </form>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCheckoutOpen(false)}
+                className="rounded-xl text-xs font-bold h-11 px-4 border-zinc-300 dark:border-zinc-700"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                form="petani-checkout-form"
+                disabled={isSubmitting || cart.length === 0}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black h-11 px-5 gap-2 shadow-lg active:scale-[0.99] transition cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Memproses Pesanan...</span>
+                  </>
+                ) : paymentMethodType === 'cash' ? (
+                  <>
+                    <Banknote className="h-4 w-4" />
+                    <span>Konfirmasi Pesanan Tunai (COD)</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4" />
+                    <span>Bayar Sekarang (Midtrans)</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
